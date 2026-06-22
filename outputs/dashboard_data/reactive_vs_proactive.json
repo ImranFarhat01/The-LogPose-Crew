@@ -1,10 +1,3 @@
-{
-  "reactive_night_patrol": 49722,
-  "proactive_rush_hour": 26532,
-  "other_hours": 65155,
-  "total": 141409,
-  "reactive_pct": 35.16,
-  "proactive_pct": 18.76,
-  "proactive_ratio": 0.5336,
-  "insight": "Only 18.8% of enforcement happens during rush hours vs 35.2% at night. Shift enforcement to 8-10AM and 5-8PM IST for maximum congestion impact."
-}
+version https://git-lfs.github.com/spec/v1
+oid sha256:8b6e2afe5a4ca9593a4a51fcdd184ec35dffc63529686949f88c06387c034c1c
+size 360
