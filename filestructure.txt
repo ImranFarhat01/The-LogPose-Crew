@@ -1,0 +1,73 @@
+|-- app.py
+|-- dashboard_data_pipeline.py
+|-- data
+    |-- bengaluru_traffic_ml_ready.csv
+    |-- class_weights.json
+    |-- cleaned
+        |-- cleaning_audit.json
+        |-- dataset_cleaned.csv
+        |-- dataset_features.csv
+    |-- enforcement_priority.csv
+    |-- jan to may police violation_anonymized791b166.csv
+    |-- label_encoders.pkl
+|-- data_cleaning.py
+|-- feature_engineering.py
+|-- feature_metadata.json
+|-- fix_deprecations.py
+|-- outputs
+    |-- classification_report.txt
+    |-- dashboard_data
+        |-- anomaly_detection.json
+        |-- day_of_week_trends.csv
+        |-- geohash_grid_overlay.csv
+        |-- global_peak_hours.csv
+        |-- habitual_offenders.csv
+        |-- hour_vs_violation_matrix.csv
+        |-- junction_reference.csv
+        |-- live_prediction_config.json
+        |-- multi_violation_profiles.csv
+        |-- multi_violation_summary.json
+        |-- offence_filter_reference.csv
+        |-- patrol_gap_analysis.csv
+        |-- peak_time_forecast.csv
+        |-- quick_view_presets.json
+        |-- reactive_vs_proactive.json
+        |-- recommendations.json
+        |-- scita_sync.json
+        |-- severity_colors.json
+        |-- station_reference.csv
+        |-- time_block_shifts.csv
+        |-- validation_status.json
+        |-- vehicle_lookup_index.csv
+        |-- vehicle_vs_violation_matrix.csv
+    |-- enforcement_priority_ranked.csv
+    |-- hotspot_clusters.csv
+    |-- maps
+        |-- 01_congestion_heatmap.html
+        |-- 02_hotspot_clusters_priority.html
+        |-- 03_night_vs_day.html
+    |-- model
+        |-- lgbm_model.txt
+        |-- xgb_model.json
+    |-- model_summary.json
+    |-- per_class_metrics.csv
+    |-- plots
+        |-- 01_top_violation_classes.png
+        |-- 02_hourly_pattern.png
+        |-- 03_day_of_week.png
+        |-- 04_vehicle_category.png
+        |-- 05_severity_distribution.png
+        |-- 06_top_police_stations.png
+        |-- 07_confusion_matrix.png
+        |-- 08_lgbm_feature_importance.png
+        |-- 09_dbscan_cluster_sizes.png
+        |-- 10_model_comparison.png
+|-- parking_intelligence_pipeline.py
+|-- README.md
+|-- requirements.txt
+|-- rewrite_app.py
+|-- scratch_update_css.py
+|-- TODO.md
+|-- violation_features.py
+|-- __pycache__
+    |-- app.cpython-313.pyc

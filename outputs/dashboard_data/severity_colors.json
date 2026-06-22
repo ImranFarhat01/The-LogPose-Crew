@@ -1,0 +1,46 @@
+{
+  "severity_levels": {
+    "1": {
+      "label": "Very Low",
+      "color": "#52b788",
+      "violations": [
+        "WITHOUT SIDE MIRROR",
+        "FAIL TO USE SAFETY BELTS"
+      ]
+    },
+    "2": {
+      "label": "Low",
+      "color": "#90e0ef",
+      "violations": [
+        "DEFECTIVE NUMBER PLATE",
+        "REFUSE TO GO FOR HIRE"
+      ]
+    },
+    "3": {
+      "label": "Medium",
+      "color": "#f4a261",
+      "violations": [
+        "WRONG PARKING",
+        "NO PARKING",
+        "PARKING NEAR ROAD CROSSING"
+      ]
+    },
+    "4": {
+      "label": "High",
+      "color": "#e94560",
+      "violations": [
+        "PARKING IN MAIN ROAD",
+        "DOUBLE PARKING",
+        "PARKING ON FOOTPATH"
+      ]
+    },
+    "5": {
+      "label": "Very High",
+      "color": "#9b2335",
+      "violations": [
+        "PARKING NEAR TRAFFIC LIGHT",
+        "AGAINST ONE WAY"
+      ]
+    }
+  }
+}

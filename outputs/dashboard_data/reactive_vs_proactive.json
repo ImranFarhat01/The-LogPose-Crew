@@ -1,0 +1,10 @@
+{
+  "reactive_night_patrol": 49722,
+  "proactive_rush_hour": 26532,
+  "other_hours": 65155,
+  "total": 141409,
+  "reactive_pct": 35.16,
+  "proactive_pct": 18.76,
+  "proactive_ratio": 0.5336,
+  "insight": "Only 18.8% of enforcement happens during rush hours vs 35.2% at night. Shift enforcement to 8-10AM and 5-8PM IST for maximum congestion impact."
+}

@@ -1,0 +1,19 @@
+{
+  "raw_rows": 298450,
+  "after_dedup": 298130,
+  "after_trust_filter": 141409,
+  "after_quality_filter": 141409,
+  "final_rows": 141409,
+  "final_cols": 22,
+  "device_floor": 0.8,
+  "geo_bounds": {
+    "lat": [
+      12.7,
+      13.4
+    ],
+    "lon": [
+      77.35,
+      77.85
+    ]
+  }
+}

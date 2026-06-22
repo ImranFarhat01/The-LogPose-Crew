@@ -1,0 +1,51 @@
+{
+  "model": "LightGBM + XGBoost soft-voting ensemble",
+  "n_classes": 3,
+  "train_rows": 113127,
+  "test_rows": 28282,
+  "feature_count": 22,
+  "lgbm_accuracy": 0.9468,
+  "xgb_accuracy": 0.9487,
+  "ensemble_accuracy": 0.9476,
+  "ensemble_f1_weighted": 0.9473,
+  "ensemble_f1_macro": 0.5756,
+  "ensemble_precision": 0.947,
+  "ensemble_recall": 0.9476,
+  "n_clusters": 164,
+  "noise_points": 917,
+  "generated": "2026-06-20 22:42:29.727594",
+  "feature_columns": [
+    "hour_sin",
+    "hour_cos",
+    "day_sin",
+    "day_cos",
+    "is_night_shift",
+    "is_weekend",
+    "geohash6_density",
+    "police_station_density",
+    "vehicle_congestion_weight",
+    "is_heavy_vehicle",
+    "is_junction",
+    "is_top_junction",
+    "repeat_offender_score",
+    "is_repeat_offender",
+    "is_habitual_offender",
+    "station_hour",
+    "veh_time",
+    "vehicle_category_enc",
+    "police_station_enc",
+    "junction_name_enc",
+    "repeat_offender_tier_enc",
+    "time_bucket_enc"
+  ],
+  "target_classes": [
+    "GENERIC_PARKING",
+    "SEVERE_OBSTRUCTION",
+    "VEHICLE_COMPLIANCE"
+  ],
+  "decision_thresholds": {
+    "GENERIC_PARKING": 0.31,
+    "SEVERE_OBSTRUCTION": 0.51,
+    "VEHICLE_COMPLIANCE": 0.52
+  }
+}

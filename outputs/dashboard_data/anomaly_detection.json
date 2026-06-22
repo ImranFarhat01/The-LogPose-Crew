@@ -1,0 +1,38 @@
+{
+  "monthly_counts": [
+    {
+      "_month": "2023-11",
+      "record_count": 29493
+    },
+    {
+      "_month": "2023-12",
+      "record_count": 41953
+    },
+    {
+      "_month": "2024-01",
+      "record_count": 38951
+    },
+    {
+      "_month": "2024-02",
+      "record_count": 10287
+    },
+    {
+      "_month": "2024-03",
+      "record_count": 17255
+    },
+    {
+      "_month": "2024-04",
+      "record_count": 3468
+    }
+  ],
+  "anomalies": [
+    {
+      "_month": "2024-04",
+      "record_count": 3468,
+      "expected_median": 23374,
+      "drop_pct": 85.2
+    }
+  ],
+  "has_anomalies": true,
+  "warning_message": "\u26a0\ufe0f Data collection dropped sharply in: 2024-04. These months have <20% of median volume (23,374 records). Treat insights from these periods with caution."
+}

@@ -1,0 +1,16 @@
+{
+  "total_multi_violation_records": 17075,
+  "pct_of_total": 12.07,
+  "avg_violations_per_record": 2.22,
+  "max_violations_single_record": 9,
+  "distribution": {
+    "2": 14274,
+    "3": 2169,
+    "4": 446,
+    "5": 89,
+    "6": 65,
+    "7": 19,
+    "8": 10,
+    "9": 3
+  }
+}

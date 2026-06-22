@@ -1,0 +1,41 @@
+{
+  "numeric_features": [
+    "hour_sin",
+    "hour_cos",
+    "day_sin",
+    "day_cos",
+    "is_night_shift",
+    "is_weekend",
+    "geohash6_density",
+    "police_station_density",
+    "vehicle_congestion_weight",
+    "is_heavy_vehicle",
+    "vehicle_category_enc",
+    "violation_count",
+    "max_severity",
+    "avg_severity",
+    "total_severity",
+    "is_multi_label",
+    "is_high_severity",
+    "is_junction",
+    "is_top_junction",
+    "repeat_offender_score",
+    "is_repeat_offender",
+    "is_habitual_offender",
+    "station_hour",
+    "veh_time",
+    "police_station_enc",
+    "junction_name_enc",
+    "repeat_offender_tier_enc",
+    "time_bucket_enc"
+  ],
+  "total_features": 28,
+  "excluded_from_ml": [
+    "latitude",
+    "longitude"
+  ],
+  "unmapped_vehicle_types": [],
+  "class_weight_cap": 30.0,
+  "total_rows": 141409,
+  "generated": "2026-06-20 14:47:21.475063"
+}

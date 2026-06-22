@@ -1,0 +1,38 @@
+[
+  {
+    "priority": 1,
+    "station": "Upparpet",
+    "directive": "Deploy 8 officers to Upparpet jurisdiction between 9:00 \u2013 11:00 IST. This zone has 18,791 violations (avg severity: 3.0/5). Watch for 802 heavy vehicle violations.",
+    "score": 0.6636
+  },
+  {
+    "priority": 2,
+    "station": "Whitefield",
+    "directive": "Deploy 2 officers to Whitefield jurisdiction between 10:00 \u2013 12:00 IST. This zone has 886 violations (avg severity: 3.5/5). Watch for 62 heavy vehicle violations.",
+    "score": 0.5837
+  },
+  {
+    "priority": 3,
+    "station": "Chikkajala",
+    "directive": "Deploy 2 officers to Chikkajala jurisdiction between 4:00 \u2013 6:00 IST. This zone has 2,706 violations (avg severity: 3.3/5). ",
+    "score": 0.5617
+  },
+  {
+    "priority": 4,
+    "station": "Mahadevapura",
+    "directive": "Deploy 2 officers to Mahadevapura jurisdiction between 6:00 \u2013 8:00 IST. This zone has 2,828 violations (avg severity: 3.4/5). Watch for 170 heavy vehicle violations.",
+    "score": 0.5554
+  },
+  {
+    "priority": 5,
+    "station": "HAL Old Airport",
+    "directive": "Deploy 4 officers to HAL Old Airport jurisdiction between 8:00 \u2013 10:00 IST. This zone has 9,284 violations (avg severity: 3.3/5). Watch for 336 heavy vehicle violations.",
+    "score": 0.5251
+  },
+  {
+    "priority": 0,
+    "station": "CITY-WIDE",
+    "directive": "Only 18.8% of enforcement happens during rush hours vs 35.2% at night. Shift enforcement to 8-10AM and 5-8PM IST for maximum congestion impact.",
+    "score": 1.0
+  }
+]
