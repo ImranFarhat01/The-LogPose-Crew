@@ -1,4 +1,0 @@
-- [ ] Create requirements.txt at repo root with dependencies for Streamlit app + ML + dashboard pipelines.
-- [ ] Create git commit including requirements.txt.
-- [ ] Push commit to GitHub repo: https://github.com/HimanshuMahajan2111/The-LogPose-Crew
-- [ ] Run a quick sanity check: `python -m pip install -r requirements.txt` (optional if environment already has deps) and `python -c "import streamlit, pandas, numpy"`.
