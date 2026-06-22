@@ -606,9 +606,15 @@ from pymongo import MongoClient
 import certifi
 
 load_dotenv(override=True)
-SUPABASE_URI = os.getenv("SUPABASE_URI", "")
-MONGO_URI = os.getenv("MONGO_URI", "")
-MONGO_DB = os.getenv("MONGO_DB", "btp_db")
+
+try:
+    SUPABASE_URI = st.secrets.get("SUPABASE_URI", os.getenv("SUPABASE_URI", ""))
+    MONGO_URI = st.secrets.get("MONGO_URI", os.getenv("MONGO_URI", ""))
+    MONGO_DB = st.secrets.get("MONGO_DB", os.getenv("MONGO_DB", "btp_db"))
+except Exception:
+    SUPABASE_URI = os.getenv("SUPABASE_URI", "")
+    MONGO_URI = os.getenv("MONGO_URI", "")
+    MONGO_DB = os.getenv("MONGO_DB", "btp_db")
 
 DB_PATH = BASE_DIR / "btp_database.db"
 ZIP_PATH = BASE_DIR / "btp_database.zip"
@@ -617,10 +623,11 @@ ZIP_PATH = BASE_DIR / "btp_database.zip"
 def get_mongo_client():
     if MONGO_URI:
         try:
-            client = MongoClient(MONGO_URI, tlsCAFile=certifi.where())
+            client = MongoClient(MONGO_URI, tlsCAFile=certifi.where(), serverSelectionTimeoutMS=5000)
             client.admin.command('ping')
             return client
-        except Exception:
+        except Exception as e:
+            st.error(f"MongoDB Connection Error (Check IP Whitelist or Secrets): {e}")
             pass
     return None
 
@@ -631,7 +638,8 @@ def get_supabase_conn():
             engine = create_engine(SUPABASE_URI)
             conn = engine.connect()
             return conn
-        except Exception:
+        except Exception as e:
+            st.error(f"Supabase Connection Error: {e}")
             pass
     return None
 
@@ -662,7 +670,10 @@ def load_features():
             data = list(db["dataset_features"].find({}, {"_id": 0}))
             if data:
                 return pd.DataFrame(data)
-        except Exception:
+            else:
+                st.warning("MongoDB connected, but 'dataset_features' is empty!")
+        except Exception as e:
+            st.error(f"MongoDB Data Fetch Error: {e}")
             pass
             
     conn = get_sqlite_conn()
