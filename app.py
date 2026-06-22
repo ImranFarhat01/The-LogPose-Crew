@@ -16,7 +16,8 @@ import json
 from pathlib import Path
 
 # ── PATHS ───────────────────────────────────────────────────────────────────
-BASE_DIR  = Path(r"D:\Flipkart Gridlock 2.0\Round-2")
+# Dynamically get the directory where app.py is located
+BASE_DIR  = Path(__file__).parent
 DATA_DIR  = BASE_DIR / "data"
 CLEAN_DIR = DATA_DIR / "cleaned"
 OUT_DIR   = BASE_DIR / "outputs"
