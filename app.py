@@ -595,34 +595,29 @@ footer {{ visibility: hidden; }}
 # DATA LOADING
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 import os
-from dotenv import load_dotenv
-from pymongo import MongoClient
-import certifi
+import sqlite3
+import zipfile
 
-load_dotenv()
-MONGO_URI = os.getenv("MONGO_URI", "")
-MONGO_DB = os.getenv("MONGO_DB", "btp_db")
+DB_PATH = BASE_DIR / "btp_database.db"
+ZIP_PATH = BASE_DIR / "btp_database.zip"
 
 @st.cache_resource
-def get_mongo_client():
-    if MONGO_URI:
-        try:
-            client = MongoClient(MONGO_URI, tlsCAFile=certifi.where())
-            client.admin.command('ping')
-            return client
-        except Exception as e:
-            return None
+def get_sqlite_conn():
+    if not DB_PATH.exists() and ZIP_PATH.exists():
+        with zipfile.ZipFile(ZIP_PATH, 'r') as zip_ref:
+            zip_ref.extractall(BASE_DIR)
+    
+    if DB_PATH.exists():
+        conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+        return conn
     return None
 
 @st.cache_data(ttl=3600)
 def load_features():
-    client = get_mongo_client()
-    if client:
+    conn = get_sqlite_conn()
+    if conn:
         try:
-            db = client[MONGO_DB]
-            data = list(db["dataset_features"].find({}, {"_id": 0}))
-            if data:
-                return pd.DataFrame(data)
+            return pd.read_sql("SELECT * FROM dataset_features", conn)
         except Exception:
             pass
     return pd.read_csv(CLEAN_DIR / "dataset_features.csv", low_memory=False)
@@ -630,12 +625,14 @@ def load_features():
 @st.cache_data(ttl=3600)
 def _load_json(p, coll_name=None):
     if coll_name:
-        client = get_mongo_client()
-        if client:
+        conn = get_sqlite_conn()
+        if conn:
             try:
-                db = client[MONGO_DB]
-                doc = db[coll_name].find_one({}, {"_id": 0})
-                if doc: return doc
+                cursor = conn.cursor()
+                cursor.execute("SELECT data FROM json_store WHERE key=?", (coll_name,))
+                row = cursor.fetchone()
+                if row:
+                    return json.loads(row[0])
             except Exception:
                 pass
     with open(p) as f: return json.load(f)
@@ -643,12 +640,10 @@ def _load_json(p, coll_name=None):
 @st.cache_data(ttl=3600)
 def _load_csv(p, coll_name=None):
     if coll_name:
-        client = get_mongo_client()
-        if client:
+        conn = get_sqlite_conn()
+        if conn:
             try:
-                db = client[MONGO_DB]
-                data = list(db[coll_name].find({}, {"_id": 0}))
-                if data: return pd.DataFrame(data)
+                return pd.read_sql(f"SELECT * FROM {coll_name}", conn)
             except Exception:
                 pass
     return pd.read_csv(p)
