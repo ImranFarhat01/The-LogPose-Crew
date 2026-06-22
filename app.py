@@ -602,12 +602,27 @@ import pandas as pd
 import streamlit as st
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
+from pymongo import MongoClient
+import certifi
 
 load_dotenv(override=True)
 SUPABASE_URI = os.getenv("SUPABASE_URI", "")
+MONGO_URI = os.getenv("MONGO_URI", "")
+MONGO_DB = os.getenv("MONGO_DB", "btp_db")
 
 DB_PATH = BASE_DIR / "btp_database.db"
 ZIP_PATH = BASE_DIR / "btp_database.zip"
+
+@st.cache_resource
+def get_mongo_client():
+    if MONGO_URI:
+        try:
+            client = MongoClient(MONGO_URI, tlsCAFile=certifi.where())
+            client.admin.command('ping')
+            return client
+        except Exception:
+            pass
+    return None
 
 @st.cache_resource
 def get_supabase_conn():
@@ -640,12 +655,23 @@ def load_features():
         except Exception:
             pass
             
+    mongo_client = get_mongo_client()
+    if mongo_client:
+        try:
+            db = mongo_client[MONGO_DB]
+            data = list(db["dataset_features"].find({}, {"_id": 0}))
+            if data:
+                return pd.DataFrame(data)
+        except Exception:
+            pass
+            
     conn = get_sqlite_conn()
     if conn:
         try:
             return pd.read_sql("SELECT * FROM dataset_features", conn)
         except Exception:
             pass
+            
     return pd.read_csv(CLEAN_DIR / "dataset_features.csv", low_memory=False)
 
 @st.cache_data(ttl=3600)
@@ -659,6 +685,15 @@ def _load_json(p, coll_name=None):
                 row = cursor.fetchone()
                 if row:
                     return json.loads(row[0])
+            except Exception:
+                pass
+
+        mongo_client = get_mongo_client()
+        if mongo_client:
+            try:
+                db = mongo_client[MONGO_DB]
+                doc = db[coll_name].find_one({}, {"_id": 0})
+                if doc: return doc
             except Exception:
                 pass
 
@@ -681,6 +716,15 @@ def _load_csv(p, coll_name=None):
         if supa_conn:
             try:
                 return pd.read_sql(f"SELECT * FROM {coll_name}", supa_conn)
+            except Exception:
+                pass
+
+        mongo_client = get_mongo_client()
+        if mongo_client:
+            try:
+                db = mongo_client[MONGO_DB]
+                data = list(db[coll_name].find({}, {"_id": 0}))
+                if data: return pd.DataFrame(data)
             except Exception:
                 pass
 
