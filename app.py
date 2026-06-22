@@ -619,6 +619,24 @@ except Exception:
 DB_PATH = BASE_DIR / "btp_database.db"
 ZIP_PATH = BASE_DIR / "btp_database.zip"
 
+if not MONGO_URI and not SUPABASE_URI and not DB_PATH.exists() and not ZIP_PATH.exists():
+    st.error("🚨 **CRITICAL DEPLOYMENT ERROR: No Database Found!** 🚨")
+    st.markdown("""
+    Your Streamlit Cloud app does not know how to connect to MongoDB because **the credentials are missing!**
+
+    ### How to fix this RIGHT NOW:
+    1. Open your Streamlit Cloud Dashboard.
+    2. Click the three dots (**⋮**) next to your app and select **Settings**.
+    3. Go to the **Secrets** tab.
+    4. Paste the following exact text into the box:
+    ```toml
+    MONGO_URI="mongodb+srv://mbhootra3_db_user:DbMs%40321@cluster0.dmtvmdz.mongodb.net/LogPose?retryWrites=true&w=majority"
+    MONGO_DB="btp_db"
+    ```
+    5. Click **Save** and refresh this page.
+    """)
+    st.stop()
+
 @st.cache_resource
 def get_mongo_client():
     if MONGO_URI:
