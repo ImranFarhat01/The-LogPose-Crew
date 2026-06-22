@@ -628,9 +628,9 @@ if not MONGO_URI and not SUPABASE_URI and not DB_PATH.exists() and not ZIP_PATH.
     1. Open your Streamlit Cloud Dashboard.
     2. Click the three dots (**⋮**) next to your app and select **Settings**.
     3. Go to the **Secrets** tab.
-    4. Paste the following exact text into the box:
+    4. Paste the following exact text into the box, replacing the placeholders with your actual credentials:
     ```toml
-    MONGO_URI="mongodb+srv://mbhootra3_db_user:DbMs%40321@cluster0.dmtvmdz.mongodb.net/LogPose?retryWrites=true&w=majority"
+    MONGO_URI="mongodb+srv://<username>:<password>@cluster0.../LogPose?retryWrites=true&w=majority"
     MONGO_DB="btp_db"
     ```
     5. Click **Save** and refresh this page.
