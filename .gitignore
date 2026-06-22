@@ -3,3 +3,5 @@ outputs/dashboard_data/
 .env
 __pycache__/
 *.pyc
+btp_database.db
+btp_database.zip
