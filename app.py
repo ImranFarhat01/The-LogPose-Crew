@@ -597,9 +597,28 @@ footer {{ visibility: hidden; }}
 import os
 import sqlite3
 import zipfile
+import json
+import pandas as pd
+import streamlit as st
+from dotenv import load_dotenv
+from sqlalchemy import create_engine
+
+load_dotenv(override=True)
+SUPABASE_URI = os.getenv("SUPABASE_URI", "")
 
 DB_PATH = BASE_DIR / "btp_database.db"
 ZIP_PATH = BASE_DIR / "btp_database.zip"
+
+@st.cache_resource
+def get_supabase_conn():
+    if SUPABASE_URI:
+        try:
+            engine = create_engine(SUPABASE_URI)
+            conn = engine.connect()
+            return conn
+        except Exception:
+            pass
+    return None
 
 @st.cache_resource
 def get_sqlite_conn():
@@ -614,6 +633,13 @@ def get_sqlite_conn():
 
 @st.cache_data(ttl=3600)
 def load_features():
+    supa_conn = get_supabase_conn()
+    if supa_conn:
+        try:
+            return pd.read_sql("SELECT * FROM dataset_features", supa_conn)
+        except Exception:
+            pass
+            
     conn = get_sqlite_conn()
     if conn:
         try:
@@ -625,6 +651,17 @@ def load_features():
 @st.cache_data(ttl=3600)
 def _load_json(p, coll_name=None):
     if coll_name:
+        supa_conn = get_supabase_conn()
+        if supa_conn:
+            try:
+                from sqlalchemy import text
+                cursor = supa_conn.execute(text("SELECT data FROM json_store WHERE key=:key"), {"key": coll_name})
+                row = cursor.fetchone()
+                if row:
+                    return json.loads(row[0])
+            except Exception:
+                pass
+
         conn = get_sqlite_conn()
         if conn:
             try:
@@ -640,6 +677,13 @@ def _load_json(p, coll_name=None):
 @st.cache_data(ttl=3600)
 def _load_csv(p, coll_name=None):
     if coll_name:
+        supa_conn = get_supabase_conn()
+        if supa_conn:
+            try:
+                return pd.read_sql(f"SELECT * FROM {coll_name}", supa_conn)
+            except Exception:
+                pass
+
         conn = get_sqlite_conn()
         if conn:
             try:
