@@ -594,52 +594,99 @@ footer {{ visibility: hidden; }}
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # DATA LOADING
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+import os
+from dotenv import load_dotenv
+from pymongo import MongoClient
+import certifi
+
+load_dotenv()
+MONGO_URI = os.getenv("MONGO_URI", "")
+MONGO_DB = os.getenv("MONGO_DB", "btp_db")
+
+@st.cache_resource
+def get_mongo_client():
+    if MONGO_URI:
+        try:
+            client = MongoClient(MONGO_URI, tlsCAFile=certifi.where())
+            client.admin.command('ping')
+            return client
+        except Exception as e:
+            return None
+    return None
+
 @st.cache_data(ttl=3600)
 def load_features():
+    client = get_mongo_client()
+    if client:
+        try:
+            db = client[MONGO_DB]
+            data = list(db["dataset_features"].find({}, {"_id": 0}))
+            if data:
+                return pd.DataFrame(data)
+        except Exception:
+            pass
     return pd.read_csv(CLEAN_DIR / "dataset_features.csv", low_memory=False)
 
 @st.cache_data(ttl=3600)
-def _load_json(p):
+def _load_json(p, coll_name=None):
+    if coll_name:
+        client = get_mongo_client()
+        if client:
+            try:
+                db = client[MONGO_DB]
+                doc = db[coll_name].find_one({}, {"_id": 0})
+                if doc: return doc
+            except Exception:
+                pass
     with open(p) as f: return json.load(f)
 
 @st.cache_data(ttl=3600)
-def _load_csv(p):
+def _load_csv(p, coll_name=None):
+    if coll_name:
+        client = get_mongo_client()
+        if client:
+            try:
+                db = client[MONGO_DB]
+                data = list(db[coll_name].find({}, {"_id": 0}))
+                if data: return pd.DataFrame(data)
+            except Exception:
+                pass
     return pd.read_csv(p)
 
-def jload(p):
-    try: return _load_json(p)
+def jload(p, coll_name=None):
+    try: return _load_json(p, coll_name)
     except: return {}
 
-def cload(p):
-    try: return _load_csv(p)
+def cload(p, coll_name=None):
+    try: return _load_csv(p, coll_name)
     except: return pd.DataFrame()
 
 df              = load_features()
-model_summary   = jload(OUT_DIR / "model_summary.json")
-priority_df     = cload(OUT_DIR / "enforcement_priority_ranked.csv")
-hotspot_df      = cload(OUT_DIR / "hotspot_clusters.csv")
-peak_time_df    = cload(DASH_DIR / "peak_time_forecast.csv")
-global_peak_df  = cload(DASH_DIR / "global_peak_hours.csv")
-hour_viol_mat   = cload(DASH_DIR / "hour_vs_violation_matrix.csv")
-patrol_gap_df   = cload(DASH_DIR / "patrol_gap_analysis.csv")
-reactive_data   = jload(DASH_DIR / "reactive_vs_proactive.json")
-anomaly_data    = jload(DASH_DIR / "anomaly_detection.json")
-scita_data      = jload(DASH_DIR / "scita_sync.json")
-vehicle_idx     = cload(DASH_DIR / "vehicle_lookup_index.csv")
-multi_viol_df   = cload(DASH_DIR / "multi_violation_profiles.csv")
-multi_summary   = jload(DASH_DIR / "multi_violation_summary.json")
-veh_viol_mat    = cload(DASH_DIR / "vehicle_vs_violation_matrix.csv")
-geohash_df      = cload(DASH_DIR / "geohash_grid_overlay.csv")
-recommendations = jload(DASH_DIR / "recommendations.json")
-time_block_df   = cload(DASH_DIR / "time_block_shifts.csv")
-habitual_df     = cload(DASH_DIR / "habitual_offenders.csv")
-station_ref_df  = cload(DASH_DIR / "station_reference.csv")
-junction_ref_df = cload(DASH_DIR / "junction_reference.csv")
-quick_views     = jload(DASH_DIR / "quick_view_presets.json")
-dow_df          = cload(DASH_DIR / "day_of_week_trends.csv")
-validation_data = jload(DASH_DIR / "validation_status.json")
-offence_ref_df  = cload(DASH_DIR / "offence_filter_reference.csv")
-live_pred_cfg   = jload(DASH_DIR / "live_prediction_config.json")
+model_summary   = jload(OUT_DIR / "model_summary.json", "model_summary")
+priority_df     = cload(OUT_DIR / "enforcement_priority_ranked.csv", "enforcement_priority_ranked")
+hotspot_df      = cload(OUT_DIR / "hotspot_clusters.csv", "hotspot_clusters")
+peak_time_df    = cload(DASH_DIR / "peak_time_forecast.csv", "peak_time_forecast")
+global_peak_df  = cload(DASH_DIR / "global_peak_hours.csv", "global_peak_hours")
+hour_viol_mat   = cload(DASH_DIR / "hour_vs_violation_matrix.csv", "hour_vs_violation_matrix")
+patrol_gap_df   = cload(DASH_DIR / "patrol_gap_analysis.csv", "patrol_gap_analysis")
+reactive_data   = jload(DASH_DIR / "reactive_vs_proactive.json", "reactive_vs_proactive")
+anomaly_data    = jload(DASH_DIR / "anomaly_detection.json", "anomaly_detection")
+scita_data      = jload(DASH_DIR / "scita_sync.json", "scita_sync")
+vehicle_idx     = cload(DASH_DIR / "vehicle_lookup_index.csv", "vehicle_lookup_index")
+multi_viol_df   = cload(DASH_DIR / "multi_violation_profiles.csv", "multi_violation_profiles")
+multi_summary   = jload(DASH_DIR / "multi_violation_summary.json", "multi_violation_summary")
+veh_viol_mat    = cload(DASH_DIR / "vehicle_vs_violation_matrix.csv", "vehicle_vs_violation_matrix")
+geohash_df      = cload(DASH_DIR / "geohash_grid_overlay.csv", "geohash_grid_overlay")
+recommendations = jload(DASH_DIR / "recommendations.json", "recommendations")
+time_block_df   = cload(DASH_DIR / "time_block_shifts.csv", "time_block_shifts")
+habitual_df     = cload(DASH_DIR / "habitual_offenders.csv", "habitual_offenders")
+station_ref_df  = cload(DASH_DIR / "station_reference.csv", "station_reference")
+junction_ref_df = cload(DASH_DIR / "junction_reference.csv", "junction_reference")
+quick_views     = jload(DASH_DIR / "quick_view_presets.json", "quick_view_presets")
+dow_df          = cload(DASH_DIR / "day_of_week_trends.csv", "day_of_week_trends")
+validation_data = jload(DASH_DIR / "validation_status.json", "validation_status")
+offence_ref_df  = cload(DASH_DIR / "offence_filter_reference.csv", "offence_filter_reference")
+live_pred_cfg   = jload(DASH_DIR / "live_prediction_config.json", "live_prediction_config")
 
 target_col = "primary_violation_final" if "primary_violation_final" in df.columns else "primary_violation"
 
