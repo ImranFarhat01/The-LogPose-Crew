@@ -983,7 +983,7 @@ if page == "🏠 Command Center":
             <span style="color:{'#52b788' if s_pct>=80 else '#e94560'}">{'🟢' if s_pct>=80 else '🔴'}</span> 
             SCITA Sync: {s_pct:.1f}%
         </div>
-        <div class="status-pill" style="white-space:normal; max-width:500px; align-items:flex-start;">
+        <div class="status-pill" style="white-space:normal; flex:1; align-items:flex-start;">
             <span style="color:{'#e94560' if has_anom else '#52b788'}; flex-shrink:0;">{'🔴' if has_anom else '🟢'}</span> 
             {'Anomaly: ' + anom_msg if has_anom else 'System Normal'}
         </div>
