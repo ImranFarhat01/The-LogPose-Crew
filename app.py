@@ -619,7 +619,8 @@ except Exception:
 DB_PATH = BASE_DIR / "btp_database.db"
 ZIP_PATH = BASE_DIR / "btp_database.zip"
 
-if not MONGO_URI and not SUPABASE_URI and not DB_PATH.exists() and not ZIP_PATH.exists():
+PARQUET_PATH = BASE_DIR / "data" / "features_slim.parquet"
+if not MONGO_URI and not SUPABASE_URI and not DB_PATH.exists() and not ZIP_PATH.exists() and not PARQUET_PATH.exists():
     st.error("🚨 **CRITICAL DEPLOYMENT ERROR: No Database Found!** 🚨")
     st.markdown("""
     Your Streamlit Cloud app does not know how to connect to MongoDB because **the credentials are missing!**
