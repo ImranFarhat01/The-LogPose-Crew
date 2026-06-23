@@ -1038,6 +1038,18 @@ if page == "🏠 Command Center":
     bot_left, bot_right = st.columns([5, 6])
 
     with bot_left:
+        sec("System Exports")
+        ex1, ex2 = st.columns(2)
+        with ex1:
+            if not priority_df.empty:
+                st.download_button("Download Priority CSV", priority_df.to_csv(index=False).encode(),
+                                   "priority_ranked.csv", "text/csv", use_container_width=True)
+        with ex2:
+            if not hotspot_df.empty:
+                st.download_button("Download Hotspots CSV", hotspot_df.to_csv(index=False).encode(),
+                                   "hotspot_clusters.csv", "text/csv", use_container_width=True)
+
+        st.markdown("<br>", unsafe_allow_html=True)
         sec("Data Health & Integrity")
         dh1, dh2, dh3 = st.columns(3)
         kpi("Total Records", f"{len(dff):,}", dh1)
@@ -1061,19 +1073,15 @@ if page == "🏠 Command Center":
         kpi("Heavy Vehicles", f"{hvy_c:,} <span style='font-size:0.5em;color:{T['neutral']}'>({hvy_pct:.1f}%)</span>", o3)
         kpi("Multi-Violation", f"{k_mv:,}", o4)
 
-        st.markdown("<br>", unsafe_allow_html=True)
-        sec("System Exports")
-        ex1, ex2 = st.columns(2)
-        with ex1:
-            if not priority_df.empty:
-                st.download_button("Download Priority CSV", priority_df.to_csv(index=False).encode(),
-                                   "priority_ranked.csv", "text/csv", use_container_width=True)
-        with ex2:
-            if not hotspot_df.empty:
-                st.download_button("Download Hotspots CSV", hotspot_df.to_csv(index=False).encode(),
-                                   "hotspot_clusters.csv", "text/csv", use_container_width=True)
-
     with bot_right:
+        sec("Quick Navigation")
+        qcols1, qcols2 = st.columns(2), st.columns(2)
+        if qcols1[0].button("Zone Maps", use_container_width=True): navigate_to("🗺️ Zone Maps")
+        if qcols1[1].button("Offender Registry", use_container_width=True): navigate_to("🚨 Offender Registry")
+        if qcols2[0].button("Priority Board", use_container_width=True): navigate_to("📊 Priority Board")
+        if qcols2[1].button("Shift & Timing", use_container_width=True): navigate_to("⏱️ Shift & Timing")
+
+        st.markdown("<br>", unsafe_allow_html=True)
         sec("AI & Operations Overview")
         ao1, ao2, ao3 = st.columns(3)
         acc = model_summary.get('ensemble_accuracy', 0) if model_summary else 0
@@ -1114,14 +1122,6 @@ if page == "🏠 Command Center":
             if cmd_search:
                 st.session_state.quick_search_vnum = cmd_search.strip().upper()
             navigate_to("🚨 Offender Registry")
-
-        st.markdown("<br>", unsafe_allow_html=True)
-        sec("Quick Navigation")
-        qcols1, qcols2 = st.columns(2), st.columns(2)
-        if qcols1[0].button("Zone Maps", use_container_width=True): navigate_to("🗺️ Zone Maps")
-        if qcols1[1].button("Offender Registry", use_container_width=True): navigate_to("🚨 Offender Registry")
-        if qcols2[0].button("Priority Board", use_container_width=True): navigate_to("📊 Priority Board")
-        if qcols2[1].button("Shift & Timing", use_container_width=True): navigate_to("⏱️ Shift & Timing")
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
