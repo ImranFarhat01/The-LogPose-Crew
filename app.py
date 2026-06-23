@@ -991,7 +991,7 @@ if page == "🏠 Command Center":
 
     # ── Split KPI Row ──
     # ── Top Row: Map + Directives ──
-    col_left, col_right = st.columns([5, 6])
+    col_left, col_right = st.columns([7, 4])
 
     with col_left:
         sec("Operations Map Viewer")
