@@ -82,29 +82,6 @@ def get_theme():
 
 T = get_theme()
 
-def apply_chart_theme(fig, height=None):
-    layout = dict(
-        paper_bgcolor=T["bg"],
-        plot_bgcolor=T["card_bg2"],
-        font_color=T["text"],
-        font=dict(color=T["text"]),
-    )
-    if height:
-        layout["height"] = height
-    fig.update_layout(**layout)
-    fig.update_xaxes(
-        tickfont=dict(color=T["text"]),
-        title_font=dict(color=T["text"]),
-        gridcolor=T["border"],
-        linecolor=T["border"],
-    )
-    fig.update_yaxes(
-        tickfont=dict(color=T["text"]),
-        title_font=dict(color=T["text"]),
-        gridcolor=T["border"],
-        linecolor=T["border"],
-    )
-    return fig
 # ── GLOBAL CSS ───────────────────────────────────────────────────────────────
 _dark = st.session_state.dark_mode
 _glass_bg = 'rgba(19,19,42,0.65)' if _dark else 'rgba(255,255,255,0.55)'
@@ -1407,7 +1384,7 @@ elif page == "🗺️ Zone Maps":
                          color_discrete_sequence=[T["accent"]],
                          title=f"Hourly Pattern - {stn_sel}",
                          template=T["plotly_template"])
-            apply_chart_theme(fig)
+            fig.update_layout(paper_bgcolor=T["bg"], plot_bgcolor=T["card_bg2"], font_color=T["text"])
             st.plotly_chart(fig, use_container_width=True)
 
 
@@ -1477,7 +1454,7 @@ elif page == "📊 Priority Board":
             labels={"point_count":"Violations","index":"Cluster Rank"},
             template=T["plotly_template"],
         )
-        apply_chart_theme(fig)
+        fig.update_layout(paper_bgcolor=T["bg"], plot_bgcolor=T["card_bg2"], font_color=T["text"])
         st.plotly_chart(fig, use_container_width=True)
         st.dataframe(
             top15[["cluster","centroid_lat","centroid_lon","point_count"]],
@@ -1886,7 +1863,7 @@ elif page == "🚨 Offender Registry":
             color_continuous_scale=["#0a0a14","#4cc9f0","#e94560"],
             template=T["plotly_template"], aspect="auto",
         )
-        apply_chart_theme(fig, height=350)
+        fig.update_layout(paper_bgcolor=T["bg"], font_color=T["text"], height=350)
         st.plotly_chart(fig, use_container_width=True)
 
 
@@ -1918,7 +1895,7 @@ elif page == "⏱️ Shift & Timing":
                      color="avg_severity", color_continuous_scale=["#4cc9f0","#e94560"],
                      hover_data=["ist_range","heavy_count","avg_congestion_weight"],
                      template=T["plotly_template"])
-        apply_chart_theme(fig)
+        fig.update_layout(paper_bgcolor=T["bg"], plot_bgcolor=T["card_bg2"], font_color=T["text"])
         st.plotly_chart(fig, use_container_width=True)
 
     st.divider()
@@ -1940,7 +1917,7 @@ elif page == "⏱️ Shift & Timing":
         fig = px.bar(peak_data, x="hour", y="violation_count",
                      color="violation_count", color_continuous_scale=["#13132a","#e94560"],
                      title=ptitle, template=T["plotly_template"])
-        apply_chart_theme(fig)
+        fig.update_layout(paper_bgcolor=T["bg"], plot_bgcolor=T["card_bg2"], font_color=T["text"])
         st.plotly_chart(fig, use_container_width=True)
         peak_h = int(peak_data.loc[peak_data["violation_count"].idxmax(), "hour"])
         st.success(f"🔮 **Deploy at {peak_h}:00 IST** - highest violation probability. Maintain until {(peak_h+2)%24}:00 IST.")
@@ -1957,7 +1934,7 @@ elif page == "⏱️ Shift & Timing":
             color_continuous_scale=["#0a0a14","#4cc9f0","#e94560","#9b2335"],
             template=T["plotly_template"], aspect="auto",
         )
-        apply_chart_theme(fig, height=520)
+        fig.update_layout(paper_bgcolor=T["bg"], font_color=T["text"], height=520)
         st.plotly_chart(fig, use_container_width=True)
 
     st.divider()
@@ -1969,7 +1946,7 @@ elif page == "⏱️ Shift & Timing":
             fig = px.bar(dow_df, x="day_name", y="violation_count",
                          color="avg_severity", color_continuous_scale=["#4cc9f0","#e94560"],
                          template=T["plotly_template"])
-            apply_chart_theme(fig)
+            fig.update_layout(paper_bgcolor=T["bg"], plot_bgcolor=T["card_bg2"], font_color=T["text"])
             st.plotly_chart(fig, use_container_width=True)
 
     with c_react:
@@ -1986,8 +1963,8 @@ elif page == "⏱️ Shift & Timing":
                 marker_colors=["#9b2335","#52b788","#4cc9f0"],
                 hole=.55, textinfo="label+percent", textfont_size=10,
             ))
-            apply_chart_theme(fig, height=320)
-            fig.update_layout(margin=dict(l=0,r=0,t=0,b=0))
+            fig.update_layout(paper_bgcolor=T["bg"], font_color=T["text"], height=320,
+                              margin=dict(l=0,r=0,t=0,b=0))
             st.plotly_chart(fig, use_container_width=True)
             st.info(f"💡 {reactive_data.get('insight','')}")
 
@@ -2157,7 +2134,7 @@ elif page == "🤖 AI Model":
                 fig = px.bar(prob_df, x="Class", y="Probability (%)",
                              color="Probability (%)", color_continuous_scale=["#4cc9f0","#e94560"],
                              template=T["plotly_template"])
-                apply_chart_theme(fig)
+                fig.update_layout(paper_bgcolor=T["bg"], plot_bgcolor=T["card_bg2"], font_color=T["text"])
                 st.plotly_chart(fig, use_container_width=True)
 
                 th_str = " · ".join(
@@ -2198,7 +2175,7 @@ elif page == "⚙️ System":
                 color_discrete_sequence=["#52b788","#f4a261","#e94560","#4cc9f0","#9b59b6","#6c757d"],
                 template=T["plotly_template"], hole=.4,
             )
-            apply_chart_theme(fig, height=380)
+            fig.update_layout(paper_bgcolor=T["bg"], font_color=T["text"], height=380)
             st.plotly_chart(fig, use_container_width=True)
 
     st.divider()
@@ -2213,7 +2190,7 @@ elif page == "⚙️ System":
             fig = px.bar(mdf, x="_month", y="record_count",
                          color="record_count", color_continuous_scale=["#e94560","#4cc9f0","#52b788"],
                          template=T["plotly_template"])
-            apply_chart_theme(fig)
+            fig.update_layout(paper_bgcolor=T["bg"], plot_bgcolor=T["card_bg2"], font_color=T["text"])
             st.plotly_chart(fig, use_container_width=True)
     else:
         st.success("✅ No anomalies detected in data collection volume.")
