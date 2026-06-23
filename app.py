@@ -674,34 +674,29 @@ def get_sqlite_conn():
 
 @st.cache_data(ttl=3600)
 def load_features():
-    supa_conn = get_supabase_conn()
-    if supa_conn:
-        try:
-            return pd.read_sql("SELECT * FROM dataset_features", supa_conn)
-        except Exception:
-            pass
-            
+    parquet_path = BASE_DIR / "data" / "features_slim.parquet"
+    if parquet_path.exists():
+        return pd.read_parquet(parquet_path)
     mongo_client = get_mongo_client()
     if mongo_client:
         try:
             db = mongo_client[MONGO_DB]
-            data = list(db["dataset_features"].find({}, {"_id": 0}))
+            COLS = {
+                "id":1, "latitude":1, "longitude":1,
+                "vehicle_number":1, "vehicle_type":1, "vehicle_category":1,
+                "police_station":1, "validation_status":1, "created_datetime_ist":1,
+                "hour":1, "time_bucket":1, "is_heavy_vehicle":1,
+                "primary_violation":1, "violation_count":1, "max_severity":1,
+                "is_junction":1, "is_habitual_offender":1, "_id":0
+            }
+            data = list(db["dataset_features"].find({}, COLS))
             if data:
                 return pd.DataFrame(data)
             else:
                 st.warning("MongoDB connected, but 'dataset_features' is empty!")
         except Exception as e:
             st.error(f"MongoDB Data Fetch Error: {e}")
-            pass
-            
-    conn = get_sqlite_conn()
-    if conn:
-        try:
-            return pd.read_sql("SELECT * FROM dataset_features", conn)
-        except Exception:
-            pass
-            
-    return pd.read_csv(CLEAN_DIR / "dataset_features.csv", low_memory=False)
+    return pd.DataFrame()
 
 @st.cache_data(ttl=3600)
 def _load_json(p, coll_name=None):
@@ -913,7 +908,7 @@ with st.sidebar:
 
 # ── Apply filters ────────────────────────────────────────────────────────────
 with st.spinner("Processing data filters..."):
-    dff = df.copy()
+    dff = df
     if data_quality == "Approved Only" and "validation_status" in dff.columns:
         dff = dff[dff["validation_status"] == "approved"]
     if selected_violations and target_col in dff.columns:
