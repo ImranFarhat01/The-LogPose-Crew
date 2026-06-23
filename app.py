@@ -1273,9 +1273,9 @@ elif page == "🗺️ Zone Maps":
                     title=f"Hourly Pattern — {label}",
                     template=T["plotly_template"],
                 )
+                st.success(f"🔮 Peak hour: **{peak_h}:00 IST** — Deploy enforcement between {peak_h}:00 – {(peak_h+2)%24}:00 IST for max impact.")
                 fig2.update_layout(paper_bgcolor=T["bg"], plot_bgcolor=T["card_bg2"], font_color=T["text"])
                 st.plotly_chart(fig2, use_container_width=True)
-                st.success(f"🔮 Peak hour: **{peak_h}:00 IST** — Deploy enforcement between {peak_h}:00 – {(peak_h+2)%24}:00 IST for max impact.")
         else:
             st.warning("No violations in this zone. Try a different preset or reset filters.")
 
