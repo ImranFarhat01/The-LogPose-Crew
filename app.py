@@ -1038,16 +1038,13 @@ if page == "🏠 Command Center":
     bot_left, bot_right = st.columns([5, 6])
 
     with bot_left:
-        sec("System Exports")
-        ex1, ex2 = st.columns(2)
-        with ex1:
-            if not priority_df.empty:
-                st.download_button("Download Priority CSV", priority_df.to_csv(index=False).encode(),
-                                   "priority_ranked.csv", "text/csv", use_container_width=True)
-        with ex2:
-            if not hotspot_df.empty:
-                st.download_button("Download Hotspots CSV", hotspot_df.to_csv(index=False).encode(),
-                                   "hotspot_clusters.csv", "text/csv", use_container_width=True)
+        sec("Quick Vehicle Search")
+        vcols = st.columns([3, 1])
+        cmd_search = vcols[0].text_input("Enter Plate No.", placeholder="KA01AB1234", key="cmd_search_input", label_visibility="collapsed")
+        if vcols[1].button("Search", use_container_width=True, type="primary"):
+            if cmd_search:
+                st.session_state.quick_search_vnum = cmd_search.strip().upper()
+            navigate_to("🚨 Offender Registry")
 
         st.markdown("<br>", unsafe_allow_html=True)
         sec("Data Health & Integrity")
@@ -1074,21 +1071,16 @@ if page == "🏠 Command Center":
         kpi("Multi-Violation", f"{k_mv:,}", o4)
 
     with bot_right:
-        sec("Quick Navigation")
-        qcols1, qcols2 = st.columns(2), st.columns(2)
-        if qcols1[0].button("Zone Maps", use_container_width=True): navigate_to("🗺️ Zone Maps")
-        if qcols1[1].button("Offender Registry", use_container_width=True): navigate_to("🚨 Offender Registry")
-        if qcols2[0].button("Priority Board", use_container_width=True): navigate_to("📊 Priority Board")
-        if qcols2[1].button("Shift & Timing", use_container_width=True): navigate_to("⏱️ Shift & Timing")
-
-        st.markdown("<br>", unsafe_allow_html=True)
-        sec("Quick Vehicle Search")
-        vcols = st.columns([3, 1])
-        cmd_search = vcols[0].text_input("Enter Plate No.", placeholder="KA01AB1234", key="cmd_search_input", label_visibility="collapsed")
-        if vcols[1].button("Search", use_container_width=True, type="primary"):
-            if cmd_search:
-                st.session_state.quick_search_vnum = cmd_search.strip().upper()
-            navigate_to("🚨 Offender Registry")
+        sec("System Exports")
+        ex1, ex2 = st.columns(2)
+        with ex1:
+            if not priority_df.empty:
+                st.download_button("Download Priority CSV", priority_df.to_csv(index=False).encode(),
+                                   "priority_ranked.csv", "text/csv", use_container_width=True)
+        with ex2:
+            if not hotspot_df.empty:
+                st.download_button("Download Hotspots CSV", hotspot_df.to_csv(index=False).encode(),
+                                   "hotspot_clusters.csv", "text/csv", use_container_width=True)
 
         st.markdown("<br>", unsafe_allow_html=True)
         sec("AI & Operations Overview")
@@ -1122,6 +1114,14 @@ if page == "🏠 Command Center":
         with gi3:
             st.markdown(f'<div class="glance-card"><div class="glance-text">Peak Window:<br><b>City-wide violations peak at {p_hour}:00 IST</b></div></div>', unsafe_allow_html=True)
             if st.button("AI Model", key="g_shift2", use_container_width=True): navigate_to("🤖 AI Model")
+
+            st.markdown("<br>", unsafe_allow_html=True)
+            sec("Quick Navigation")
+            qn1, qn2, qn3, qn4 = st.columns(4)
+            if qn1.button("Zone Maps", use_container_width=True): navigate_to("🗺️ Zone Maps")
+            if qn2.button("Offender Registry", use_container_width=True): navigate_to("🚨 Offender Registry")
+            if qn3.button("Priority Board", use_container_width=True): navigate_to("📊 Priority Board")
+            if qn4.button("Shift & Timing", use_container_width=True): navigate_to("⏱️ Shift & Timing")
 
 
 
