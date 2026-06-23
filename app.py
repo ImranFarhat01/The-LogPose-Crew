@@ -1242,12 +1242,14 @@ elif page == "🗺️ Zone Maps":
             samp = zone_df.dropna(subset=["latitude","longitude"]).sample(min(6000, len(zone_df)), random_state=42)
             samp["sev_lbl"] = samp["max_severity"].map(sev_labels).fillna("Unknown")
 
+
             fig = px.scatter_map(
                 samp, lat="latitude", lon="longitude",
                 color="sev_lbl",
                 color_discrete_map={v: sev_cols[k] for k,v in sev_labels.items()},
                 category_orders={"sev_lbl": ["Very Low","Low","Medium","High","Very High"]},
-                hover_data=["police_station","vehicle_category",target_col,"vehicle_type"],
+                hover_data={"police_station": True, "vehicle_category": True, target_col: True, "vehicle_type": True, "latitude": False, "longitude": False},
+                labels={"sev_lbl": "Severity", "police_station": "Station", "vehicle_category": "Vehicle", target_col: "Offence", "vehicle_type": "Type"},
                 zoom=zoom, center={"lat": center[0], "lon": center[1]},
                 map_style=T["mapstyle"],
                 height=580,
@@ -1304,14 +1306,17 @@ elif page == "🗺️ Zone Maps":
                 sev_cols   = {1:"#52b788",2:"#90e0ef",3:"#f4a261",4:"#e94560",5:"#9b2335"}
                 samp = dff.dropna(subset=["latitude","longitude"]).sample(min(8000,len(dff)), random_state=42)
                 samp["sev_lbl"] = samp["max_severity"].map(sev_labels).fillna("Unknown")
+
                 fig = px.scatter_map(
                     samp, lat="latitude", lon="longitude",
                     color="sev_lbl",
                     color_discrete_map={v:sev_cols[k] for k,v in sev_labels.items()},
                     category_orders={"sev_lbl":["Very Low","Low","Medium","High","Very High"]},
-                    hover_data=["police_station","vehicle_category",target_col],
+                    hover_data={"police_station": True, "vehicle_category": True, target_col: True, "latitude": False, "longitude": False},
+                    labels={"sev_lbl": "Severity", "police_station": "Station", "vehicle_category": "Vehicle", target_col: "Offence"},
                     zoom=11, center={"lat":12.9716,"lon":77.5946},
                     map_style=T["mapstyle"], height=600,
+                    title="🟢 Bengaluru — Violations by Severity",
                 )
                 fig.update_layout(margin=dict(l=0,r=0,t=0,b=0), paper_bgcolor=T["bg"], font_color=T["text"])
                 st.plotly_chart(fig, use_container_width=True)
@@ -1319,13 +1324,16 @@ elif page == "🗺️ Zone Maps":
         with mtabs[4]:
             st.caption("Geohash6 grid (~1km² cells). Bubble size = violations. Color = severity.")
             if not geohash_df.empty:
+
                 fig = px.scatter_map(
-                    geohash_df.head(250), lat="centroid_lat", lon="centroid_lon",
+                    geohash_df.head(500), lat="centroid_lat", lon="centroid_lon",
                     size="violation_count", color="avg_severity",
                     color_continuous_scale=["#52b788","#f4a261","#e94560","#9b2335"],
-                    hover_data=["geohash6","violation_count","avg_severity","top_station"],
+                    hover_data={"geohash6": True, "violation_count": True, "avg_severity": True, "top_station": True, "centroid_lat": False, "centroid_lon": False},
+                    labels={"geohash6": "Grid Cell", "violation_count": "Violations", "avg_severity": "Avg Severity", "top_station": "Top Station"},
                     zoom=11, center={"lat":12.9716,"lon":77.5946},
                     map_style=T["mapstyle"], height=600,
+                    title="🔲 Geohash6 Grid — Violation Density per 1km² Cell",
                 )
                 fig.update_layout(margin=dict(l=0,r=0,t=0,b=0), paper_bgcolor=T["bg"], font_color=T["text"])
                 st.plotly_chart(fig, use_container_width=True)
@@ -1338,9 +1346,11 @@ elif page == "🗺️ Zone Maps":
                     patrol_gap_df.head(150), lat="centroid_lat", lon="centroid_lon",
                     size="violation_count", color="gap_score",
                     color_continuous_scale=["#52b788","#f4a261","#e94560"],
-                    hover_data=["geohash5","violation_count","active_devices","gap_score"],
+                    hover_data={"geohash5": True, "violation_count": True, "active_devices": True, "gap_score": True, "centroid_lat": False, "centroid_lon": False},
+                    labels={"geohash5": "Zone", "violation_count": "Violations", "active_devices": "Active Devices", "gap_score": "Gap Score"},
                     zoom=11, center={"lat":12.9716,"lon":77.5946},
                     map_style=T["mapstyle"], height=600,
+                    title="🔍 Patrol Gap — Underpoliced High-Violation Zones",
                 )
                 fig.update_layout(margin=dict(l=0,r=0,t=0,b=0), paper_bgcolor=T["bg"], font_color=T["text"])
                 st.plotly_chart(fig, use_container_width=True)
