@@ -1255,17 +1255,34 @@ elif page == "🗺️ Zone Maps":
                 height=580,
                 title=f"🔎 {label} — {len(zone_df):,} violations (color = severity)",
             )
+        
+            # Compute peak hour before rendering map so we can annotate it
+            peak_h = None
+            if "hour" in zone_df.columns:
+                hourly = zone_df.groupby("hour").size().reset_index(name="count")
+                peak_h = int(hourly.loc[hourly["count"].idxmax(),"hour"])
+
             fig.update_layout(
                 margin=dict(l=0,r=0,t=40,b=0),
                 paper_bgcolor=T["bg"], font_color=T["text"],
                 legend=dict(yanchor="top",y=.99,xanchor="left",x=.01,bgcolor="rgba(10,10,20,.7)"),
+                annotations=[dict(
+                    text=f"🔮 Peak: {peak_h}:00–{(peak_h+2)%24}:00 IST · Deploy now",
+                    xref="paper", yref="paper",
+                    x=0.01, y=0.01,
+                    showarrow=False,
+                    font=dict(size=12, color="#f4a261"),
+                    bgcolor="rgba(10,10,20,0.75)",
+                    bordercolor="#f4a261",
+                    borderwidth=1,
+                    borderpad=6,
+                    align="left",
+                )] if peak_h is not None else [],
             )
             st.plotly_chart(fig, use_container_width=True)
 
             # Hourly area chart
-            if "hour" in zone_df.columns:
-                hourly = zone_df.groupby("hour").size().reset_index(name="count")
-                peak_h = int(hourly.loc[hourly["count"].idxmax(),"hour"])
+            if peak_h is not None:
                 fig2 = px.area(
                     hourly, x="hour", y="count",
                     color_discrete_sequence=[T["accent"]],
@@ -1274,7 +1291,6 @@ elif page == "🗺️ Zone Maps":
                 )
                 fig2.update_layout(paper_bgcolor=T["bg"], plot_bgcolor=T["card_bg2"], font_color=T["text"])
                 st.plotly_chart(fig2, use_container_width=True)
-                st.success(f"🔮 Peak hour: **{peak_h}:00 IST** — Deploy enforcement between {peak_h}:00 – {(peak_h+2)%24}:00 IST for max impact.")
         else:
             st.warning("No violations in this zone. Try a different preset or reset filters.")
 
