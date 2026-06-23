@@ -1077,7 +1077,7 @@ if page == "🏠 Command Center":
         gi1, gi2, gi3 = st.columns(3)
         with gi1:
             st.markdown(f'<div class="glance-card"><div class="glance-text">Enforcement:<br><b>{proa:.1f}% proactive vs {reac:.1f}% reactive</b></div></div>', unsafe_allow_html=True)
-            if st.button("Shift & Timing", key="g_shift1", use_container_width=True): navigate_to("⏰ Shift & Timing")
+            if st.button("Shift & Timing", key="g_shift1", use_container_width=True): navigate_to("⏱️ Shift & Timing")
         with gi2:
             st.markdown(f'<div class="glance-card urgent-card"><div class="glance-text">Patrol Gap:<br><b>Highest enforcement gap in {g_zone}</b></div></div>', unsafe_allow_html=True)
             if st.button("Zone Maps", key="g_zone1", use_container_width=True): navigate_to("🗺️ Zone Maps")
