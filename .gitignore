@@ -1,4 +1,7 @@
-data/
+data/cleaned/
+data/*.csv
+data/*.json
+data/*.pkl
 outputs/dashboard_data/
 .env
 __pycache__/

@@ -1,7 +1,7 @@
 """
 =============================================================================
-  THE LOGPOSE — Bengaluru Parking Intelligence System
-  Flipkart GridLock 2.0 — Round 2 | PS1
+  THE LOGPOSE - Bengaluru Parking Intelligence System
+  Flipkart GridLock 2.0 - Round 2 | PS1
   Built for the Bengaluru Traffic Police (BTP)
 
   RUN: streamlit run app.py
@@ -28,7 +28,7 @@ MODEL_DIR = OUT_DIR / "model"
 
 # ── PAGE CONFIG ─────────────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="The LogPose — BTP Intelligence",
+    page_title="The LogPose - BTP Intelligence",
     page_icon="🧭",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -570,6 +570,7 @@ footer {{ visibility: hidden; }}
 .status-pill {{
     font-weight: 600; font-size: 0.85rem; color: {T['neutral']};
     display: flex; align-items: center; gap: 6px; text-transform: uppercase; letter-spacing: 0.5px;
+    white-space: nowrap;
 }}
 
 .urgent-card {{
@@ -619,7 +620,8 @@ except Exception:
 DB_PATH = BASE_DIR / "btp_database.db"
 ZIP_PATH = BASE_DIR / "btp_database.zip"
 
-if not MONGO_URI and not SUPABASE_URI and not DB_PATH.exists() and not ZIP_PATH.exists():
+PARQUET_PATH = BASE_DIR / "data" / "features_slim.parquet"
+if not MONGO_URI and not SUPABASE_URI and not DB_PATH.exists() and not ZIP_PATH.exists() and not PARQUET_PATH.exists():
     st.error("🚨 **CRITICAL DEPLOYMENT ERROR: No Database Found!** 🚨")
     st.markdown("""
     Your Streamlit Cloud app does not know how to connect to MongoDB because **the credentials are missing!**
@@ -674,34 +676,29 @@ def get_sqlite_conn():
 
 @st.cache_data(ttl=3600)
 def load_features():
-    supa_conn = get_supabase_conn()
-    if supa_conn:
-        try:
-            return pd.read_sql("SELECT * FROM dataset_features", supa_conn)
-        except Exception:
-            pass
-            
+    parquet_path = BASE_DIR / "data" / "features_slim.parquet"
+    if parquet_path.exists():
+        return pd.read_parquet(parquet_path)
     mongo_client = get_mongo_client()
     if mongo_client:
         try:
             db = mongo_client[MONGO_DB]
-            data = list(db["dataset_features"].find({}, {"_id": 0}))
+            COLS = {
+                "id":1, "latitude":1, "longitude":1,
+                "vehicle_number":1, "vehicle_type":1, "vehicle_category":1,
+                "police_station":1, "validation_status":1, "created_datetime_ist":1,
+                "hour":1, "time_bucket":1, "is_heavy_vehicle":1,
+                "primary_violation":1, "violation_count":1, "max_severity":1,
+                "is_junction":1, "is_habitual_offender":1, "_id":0
+            }
+            data = list(db["dataset_features"].find({}, COLS))
             if data:
                 return pd.DataFrame(data)
             else:
                 st.warning("MongoDB connected, but 'dataset_features' is empty!")
         except Exception as e:
             st.error(f"MongoDB Data Fetch Error: {e}")
-            pass
-            
-    conn = get_sqlite_conn()
-    if conn:
-        try:
-            return pd.read_sql("SELECT * FROM dataset_features", conn)
-        except Exception:
-            pass
-            
-    return pd.read_csv(CLEAN_DIR / "dataset_features.csv", low_memory=False)
+    return pd.DataFrame()
 
 @st.cache_data(ttl=3600)
 def _load_json(p, coll_name=None):
@@ -721,8 +718,11 @@ def _load_json(p, coll_name=None):
         if mongo_client:
             try:
                 db = mongo_client[MONGO_DB]
-                doc = db[coll_name].find_one({}, {"_id": 0})
-                if doc: return doc
+                docs = list(db[coll_name].find({}, {"_id": 0}))
+                if len(docs) > 1:
+                    return docs
+                elif len(docs) == 1:
+                    return docs[0]
             except Exception:
                 pass
 
@@ -772,6 +772,34 @@ def jload(p, coll_name=None):
 def cload(p, coll_name=None):
     try: return _load_csv(p, coll_name)
     except: return pd.DataFrame()
+
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def build_vehicle_summary(reg_df, target_col):
+    if "vehicle_number" not in reg_df.columns or len(reg_df) == 0:
+        return pd.DataFrame()
+    _count_col = "id" if "id" in reg_df.columns else reg_df.columns[0]
+    _agg = {"total_violations": (_count_col, "count")}
+    if "vehicle_category" in reg_df.columns:     _agg["vehicle_category"]  = ("vehicle_category", "first")
+    if "vehicle_type" in reg_df.columns:          _agg["vehicle_type"]       = ("vehicle_type", "first")
+    if target_col in reg_df.columns:              _agg["top_violation"]      = (target_col, lambda x: x.value_counts().index[0] if len(x) > 0 else "-")
+    if "police_station" in reg_df.columns:        _agg["top_station"]        = ("police_station", lambda x: x.value_counts().index[0] if len(x) > 0 else "-")
+    if "max_severity" in reg_df.columns:          _agg["avg_severity"]       = ("max_severity", "mean")
+    if "is_habitual_offender" in reg_df.columns:  _agg["is_habitual"]        = ("is_habitual_offender", "max")
+    if "is_heavy_vehicle" in reg_df.columns:      _agg["is_heavy"]           = ("is_heavy_vehicle", "max")
+    if "violation_count" in reg_df.columns:       _agg["multi_offence"]      = ("violation_count", lambda x: int((x > 1).sum()))
+    if "created_datetime_ist" in reg_df.columns:  _agg["last_seen"]          = ("created_datetime_ist", "max")
+    veh_summary = (
+        reg_df.groupby("vehicle_number")
+        .agg(**_agg)
+        .reset_index()
+        .sort_values("total_violations", ascending=False)
+    )
+    if "avg_severity" in veh_summary.columns:
+        veh_summary["avg_severity"] = veh_summary["avg_severity"].round(2)
+    if "last_seen" in veh_summary.columns:
+        veh_summary["last_seen"] = veh_summary["last_seen"].astype(str).str[:10]
+    return veh_summary
 
 df              = load_features()
 model_summary   = jload(OUT_DIR / "model_summary.json", "model_summary")
@@ -890,10 +918,7 @@ with st.sidebar:
     st.markdown(f'<div style="height:1px;background:linear-gradient(90deg,transparent,{T["border"]},transparent);margin:12px 0;"></div>', unsafe_allow_html=True)
 
     # Theme toggle
-    dark = st.toggle("🌙 Dark Mode", value=st.session_state.dark_mode)
-    if dark != st.session_state.dark_mode:
-        st.session_state.dark_mode = dark
-        st.rerun()
+    st.session_state.dark_mode = True
 
     st.markdown(f'<div style="height:1px;background:linear-gradient(90deg,transparent,{T["border"]},transparent);margin:12px 0;"></div>', unsafe_allow_html=True)
 
@@ -913,7 +938,7 @@ with st.sidebar:
 
 # ── Apply filters ────────────────────────────────────────────────────────────
 with st.spinner("Processing data filters..."):
-    dff = df.copy()
+    dff = df
     if data_quality == "Approved Only" and "validation_status" in dff.columns:
         dff = dff[dff["validation_status"] == "approved"]
     if selected_violations and target_col in dff.columns:
@@ -946,55 +971,71 @@ if page == "🏠 Command Center":
     anom_msg = anomaly_data.get("warning_message", "1 Alert") if anomaly_data else ""
 
     st.markdown(f'''
-    <div class="status-strip">
-        <div class="status-pill">
+    <div class="status-strip" style="justify-content:flex-start; gap:40px;">
+        <div class="status-pill" style="white-space:nowrap;">
             <span style="color:{'#52b788' if v_pct>=80 else '#e94560'}">{'🟢' if v_pct>=80 else '🔴'}</span> 
             Data Health: {v_pct:.1f}% Valid
         </div>
-        <div class="status-pill">
+        <div class="status-pill" style="white-space:nowrap;">
             <span style="color:{'#52b788' if s_pct>=80 else '#e94560'}">{'🟢' if s_pct>=80 else '🔴'}</span> 
             SCITA Sync: {s_pct:.1f}%
         </div>
-        <div class="status-pill">
-            <span style="color:{'#e94560' if has_anom else '#52b788'}">{'🔴' if has_anom else '🟢'}</span> 
+        <div class="status-pill" style="white-space:normal; flex:1; align-items:flex-start;">
+            <span style="color:{'#e94560' if has_anom else '#52b788'}; flex-shrink:0;">{'🔴' if has_anom else '🟢'}</span> 
             {'Anomaly: ' + anom_msg if has_anom else 'System Normal'}
         </div>
     </div>
     ''', unsafe_allow_html=True)
 
     # ── Split KPI Row ──
-    col_left, col_right = st.columns([5, 6])
-    
-    with col_left:
-        sec("Data Health & Integrity")
-        dh1, dh2, dh3 = st.columns(3)
-        kpi("Total Records", f"{len(dff):,}", dh1)
-        kpi("Approval Rate", f"{v_pct:.1f}%", dh2, alert=(v_pct < 80))
-        kpi("Anomalies Detected", "Yes" if has_anom else "None", dh3, alert=has_anom)
-        
-        st.markdown("<br>", unsafe_allow_html=True)
-        
-        sec("Operations Panel")
-        # SCITA Card Overhaul -> Standardized
-        scita_synced = scita_data.get('sent_to_scita', 0) if scita_data else 0
-        scita_pend = scita_data.get('not_sent', 0) if scita_data else 0
-        scita_alert = scita_pend > 0
-        
-        o1, o2 = st.columns(2)
-        kpi("SCITA Synced", f"{scita_synced:,}", o1)
-        kpi("SCITA Pending", f"{scita_pend:,}", o2, alert=scita_alert)
-        
-        st.markdown("<br>", unsafe_allow_html=True)
-        
-        hvy_c = int(dff['is_heavy_vehicle'].sum()) if "is_heavy_vehicle" in dff.columns else 0
-        hvy_pct = (hvy_c / len(dff) * 100) if len(dff) > 0 else 0
-        k_mv = multi_summary.get('total_multi_violation_records',0) if multi_summary else 0
-        
-        o3, o4 = st.columns(2)
-        kpi("Heavy Vehicles",   f"{hvy_c:,} <span style='font-size:0.5em;color:{T['neutral']}'>({hvy_pct:.1f}%)</span>", o3)
-        kpi("Multi-Violation",  f"{k_mv:,}", o4)
+    # ── Top Row: Map + Directives ──
+    col_left, col_right = st.columns([6, 5])
 
-        st.markdown("<br>", unsafe_allow_html=True)
+    with col_left:
+        sec("Operations Map Viewer")
+        if "mini_map_idx" not in st.session_state:
+            st.session_state.mini_map_idx = 0
+        mini_maps = [
+            {"title": "Congestion Heatmap", "file": "01_congestion_heatmap.html"},
+            {"title": "Hotspot Clusters & Priority", "file": "02_hotspot_clusters_priority.html"},
+            {"title": "Night vs Day Patrol", "file": "03_night_vs_day.html"}
+        ]
+        current_map = mini_maps[st.session_state.mini_map_idx]
+        st.markdown(f"<div style='text-align:center; font-weight:600; color:{T['text']};'>{current_map['title']}</div>", unsafe_allow_html=True)
+        embed_map(MAP_DIR / current_map["file"], height=500)
+        st.markdown(f"<div style='text-align:center; font-size:0.75rem; color:{T['neutral']}; padding: 6px 0 4px 0;'>Use the buttons below to switch maps &nbsp;·&nbsp; Showing {st.session_state.mini_map_idx + 1} of {len(mini_maps)}</div>", unsafe_allow_html=True)
+        nav1, nav2, nav3 = st.columns(3)
+        with nav1:
+            if st.button("🔥 Congestion Heatmap", key="btn_map_0", use_container_width=True):
+                st.session_state.mini_map_idx = 0
+                st.rerun()
+        with nav2:
+            if st.button("🎯 Hotspot Clusters", key="btn_map_1", use_container_width=True):
+                st.session_state.mini_map_idx = 1
+                st.rerun()
+        with nav3:
+            if st.button("🌙 Night vs Day", key="btn_map_2", use_container_width=True):
+                st.session_state.mini_map_idx = 2
+                st.rerun()
+
+    with col_right:
+        sec("AI Enforcement Directives")
+        if isinstance(recommendations, list) and recommendations:
+            for rec in recommendations[:5]:
+                pri   = rec.get("priority", "")
+                stn   = rec.get("station", "")
+                direc = rec.get("directive", "")
+                u_cls = "urgent-card" if pri == 1 else ""
+                tag = f"<b>[PRIORITY {pri}]</b> {stn}" if pri else f"{stn}"
+                st.markdown(f'<div class="dir-card {u_cls}" style="padding:10px 14px;"><span class="dir-rank" style="color:{T["text"]}; font-size:0.8rem;">{tag}</span><br><span style="color:{T["neutral"]};font-size:0.9rem;">{direc}</span></div>',
+                            unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # ── Bottom Row: KPIs + Stats ──
+    bot_left, bot_right = st.columns([5, 6])
+
+    with bot_left:
         sec("System Exports")
         ex1, ex2 = st.columns(2)
         with ex1:
@@ -1007,93 +1048,38 @@ if page == "🏠 Command Center":
                                    "hotspot_clusters.csv", "text/csv", use_container_width=True)
 
         st.markdown("<br>", unsafe_allow_html=True)
-        sec("AI Enforcement Directives")
-        if isinstance(recommendations, list) and recommendations:
-            for rec in recommendations[:5]:
-                pri   = rec.get("priority", "")
-                stn   = rec.get("station", "")
-                direc = rec.get("directive", "")
-                
-                u_cls = "urgent-card" if pri == 1 else ""
-                tag = f"<b>[PRIORITY {pri}]</b> {stn}" if pri else f"{stn}"
-                st.markdown(f'<div class="dir-card {u_cls}" style="padding:10px 14px;"><span class="dir-rank" style="color:{T["text"]}; font-size:0.8rem;">{tag}</span><br><span style="color:{T["neutral"]};font-size:0.9rem;">{direc}</span></div>',
-                            unsafe_allow_html=True)
-
-    with col_right:
-        sec("AI & Operations Overview")
-        ao1, ao2, ao3 = st.columns(3)
-        
-        acc = model_summary.get('ensemble_accuracy', 0) if model_summary else 0
-        uniq_veh = dff["vehicle_number"].nunique() if "vehicle_number" in dff.columns else 1
-        hab_c = int(dff["is_habitual_offender"].sum()) if "is_habitual_offender" in dff.columns else 0
-        hab_pct = (hab_c / uniq_veh * 100) if uniq_veh else 0
-        
-        ao1.markdown(f'''
-        <div class="kpi" title="Note: Class performance is uneven. Minor offences exhibit lower recall rates.">
-            <div class="kpi-lbl">Model Accuracy *</div>
-            <div class="kpi-val">{acc:.1%}</div>
-        </div>
-        ''', unsafe_allow_html=True)
-        
-        n_clus = model_summary.get('n_clusters','—') if model_summary else '—'
-        kpi("Hotspot Clusters", f"{n_clus}", ao2)
-        kpi("Habitual Offenders", f"{hab_c:,} <span style='font-size:0.5em;color:{T['neutral']}'>({hab_pct:.1f}%)</span>", ao3, alert=hab_c > 0)
-        
-        st.markdown("<br>", unsafe_allow_html=True)
-        
-        # ── Glance Insights ──
-        reac = reactive_data.get("reactive_pct", 0) if reactive_data else 0
-        proa = reactive_data.get("proactive_pct", 0) if reactive_data else 0
-        g_zone = patrol_gap_df.iloc[0]["geohash5"] if not patrol_gap_df.empty else "N/A"
-        p_hour = global_peak_df.iloc[0]["hour"] if not global_peak_df.empty else "N/A"
-        
-        gi1, gi2, gi3 = st.columns(3)
-        with gi1:
-            st.markdown(f'<div class="glance-card"><div class="glance-text">Enforcement:<br><b>{proa:.1f}% proactive vs {reac:.1f}% reactive</b></div></div>', unsafe_allow_html=True)
-            if st.button("Shift & Timing", key="g_shift1", use_container_width=True): navigate_to("⏰ Shift & Timing")
-        with gi2:
-            st.markdown(f'<div class="glance-card urgent-card"><div class="glance-text">Patrol Gap:<br><b>Highest enforcement gap in {g_zone}</b></div></div>', unsafe_allow_html=True)
-            if st.button("Zone Maps", key="g_zone1", use_container_width=True): navigate_to("🗺️ Zone Maps")
-        with gi3:
-            st.markdown(f'<div class="glance-card"><div class="glance-text">Peak Window:<br><b>City-wide violations peak at {p_hour}:00 IST</b></div></div>', unsafe_allow_html=True)
-            if st.button("Operations", key="g_shift2", use_container_width=True): navigate_to("⏰ Shift & Timing")
+        sec("Data Health & Integrity")
+        dh1, dh2, dh3 = st.columns(3)
+        kpi("Total Records", f"{len(dff):,}", dh1)
+        kpi("Approval Rate", f"{v_pct:.1f}%", dh2, alert=(v_pct < 80))
+        kpi("Anomalies Detected", "Yes" if has_anom else "None", dh3, alert=has_anom)
 
         st.markdown("<br>", unsafe_allow_html=True)
-        
-        # Mini Map Viewer Carousel
-        sec("Operations Map Viewer")
-        
-        if "mini_map_idx" not in st.session_state:
-            st.session_state.mini_map_idx = 0
-            
-        mini_maps = [
-            {"title": "Congestion Heatmap", "file": "01_congestion_heatmap.html"},
-            {"title": "Hotspot Clusters & Priority", "file": "02_hotspot_clusters_priority.html"},
-            {"title": "Night vs Day Patrol", "file": "03_night_vs_day.html"}
-        ]
-        
-        col_prev, col_map, col_next = st.columns([1, 10, 1])
-        
-        with col_prev:
-            st.markdown("<br>"*12, unsafe_allow_html=True)
-            if st.button("◄", key="btn_prev_map", use_container_width=True):
-                st.session_state.mini_map_idx = (st.session_state.mini_map_idx - 1) % len(mini_maps)
-                st.rerun()
-                
-        with col_map:
-            current_map = mini_maps[st.session_state.mini_map_idx]
-            st.markdown(f"<div style='text-align:center; font-weight:600; color:{T['text']};'>{current_map['title']}</div>", unsafe_allow_html=True)
-            st.markdown(f"<div style='text-align:center; font-size:0.75rem; color:{T['neutral']}; padding-bottom:10px;'>Map {st.session_state.mini_map_idx + 1} of {len(mini_maps)}</div>", unsafe_allow_html=True)
-            embed_map(MAP_DIR / current_map["file"], height=400)
-                
-        with col_next:
-            st.markdown("<br>"*12, unsafe_allow_html=True)
-            if st.button("►", key="btn_next_map", use_container_width=True):
-                st.session_state.mini_map_idx = (st.session_state.mini_map_idx + 1) % len(mini_maps)
-                st.rerun()
-                
+        sec("Operations Panel")
+        scita_synced = scita_data.get('sent_to_scita', 0) if scita_data else 0
+        scita_pend = scita_data.get('not_sent', 0) if scita_data else 0
+        scita_alert = scita_pend > 0
+        o1, o2 = st.columns(2)
+        kpi("SCITA Synced", f"{scita_synced:,}", o1)
+        kpi("SCITA Pending", f"{scita_pend:,}", o2, alert=scita_alert)
+
         st.markdown("<br>", unsafe_allow_html=True)
-        
+        hvy_c = int(dff['is_heavy_vehicle'].sum()) if "is_heavy_vehicle" in dff.columns else 0
+        hvy_pct = (hvy_c / len(dff) * 100) if len(dff) > 0 else 0
+        k_mv = multi_summary.get('total_multi_violation_records',0) if multi_summary else 0
+        o3, o4 = st.columns(2)
+        kpi("Heavy Vehicles", f"{hvy_c:,} <span style='font-size:0.5em;color:{T['neutral']}'>({hvy_pct:.1f}%)</span>", o3)
+        kpi("Multi-Violation", f"{k_mv:,}", o4)
+
+    with bot_right:
+        sec("Quick Navigation")
+        qcols1, qcols2 = st.columns(2), st.columns(2)
+        if qcols1[0].button("Zone Maps", use_container_width=True): navigate_to("🗺️ Zone Maps")
+        if qcols1[1].button("Offender Registry", use_container_width=True): navigate_to("🚨 Offender Registry")
+        if qcols2[0].button("Priority Board", use_container_width=True): navigate_to("📊 Priority Board")
+        if qcols2[1].button("Shift & Timing", use_container_width=True): navigate_to("⏱️ Shift & Timing")
+
+        st.markdown("<br>", unsafe_allow_html=True)
         sec("Quick Vehicle Search")
         vcols = st.columns([3, 1])
         cmd_search = vcols[0].text_input("Enter Plate No.", placeholder="KA01AB1234", key="cmd_search_input", label_visibility="collapsed")
@@ -1101,28 +1087,53 @@ if page == "🏠 Command Center":
             if cmd_search:
                 st.session_state.quick_search_vnum = cmd_search.strip().upper()
             navigate_to("🚨 Offender Registry")
-            
+
         st.markdown("<br>", unsafe_allow_html=True)
-        
-        sec("Quick Navigation")
-        qcols1, qcols2 = st.columns(2), st.columns(2)
-        if qcols1[0].button("Zone Maps", use_container_width=True): navigate_to("🗺️ Zone Maps")
-        if qcols1[1].button("Offender Registry", use_container_width=True): navigate_to("🚨 Offender Registry")
-        if qcols2[0].button("Priority Board", use_container_width=True): navigate_to("📊 Priority Board")
-        if qcols2[1].button("Shift & Timing", use_container_width=True): navigate_to("⏰ Shift & Timing")
+        sec("AI & Operations Overview")
+        ao1, ao2, ao3 = st.columns(3)
+        acc = model_summary.get('ensemble_accuracy', 0) if model_summary else 0
+        uniq_veh = dff["vehicle_number"].nunique() if "vehicle_number" in dff.columns else 1
+        hab_c = int(dff["is_habitual_offender"].sum()) if "is_habitual_offender" in dff.columns else 0
+        hab_pct = (hab_c / uniq_veh * 100) if uniq_veh else 0
+        ao1.markdown(f'''
+        <div class="kpi" title="Note: Class performance is uneven. Minor offences exhibit lower recall rates.">
+            <div class="kpi-lbl">Model Accuracy *</div>
+            <div class="kpi-val">{acc:.1%}</div>
+        </div>
+        ''', unsafe_allow_html=True)
+        n_clus = model_summary.get('n_clusters','-') if model_summary else '-'
+        kpi("Hotspot Clusters", f"{n_clus}", ao2)
+        kpi("Habitual Offenders", f"{hab_c:,} <span style='font-size:0.5em;color:{T['neutral']}'>({hab_pct:.1f}%)</span>", ao3, alert=hab_c > 0)
+
+        st.markdown("<br>", unsafe_allow_html=True)
+        reac = reactive_data.get("reactive_pct", 0) if reactive_data else 0
+        proa = reactive_data.get("proactive_pct", 0) if reactive_data else 0
+        g_zone = patrol_gap_df.iloc[0]["geohash5"] if not patrol_gap_df.empty else "N/A"
+        p_hour = global_peak_df.iloc[0]["hour"] if not global_peak_df.empty else "N/A"
+        gi1, gi2, gi3 = st.columns(3)
+        with gi1:
+            st.markdown(f'<div class="glance-card"><div class="glance-text">Enforcement:<br><b>{proa:.1f}% proactive vs {reac:.1f}% reactive</b></div></div>', unsafe_allow_html=True)
+            if st.button("Shift & Timing", key="g_shift1", use_container_width=True): navigate_to("⏱️ Shift & Timing")
+        with gi2:
+            st.markdown(f'<div class="glance-card urgent-card"><div class="glance-text">Patrol Gap:<br><b>Highest enforcement gap in {g_zone}</b></div></div>', unsafe_allow_html=True)
+            if st.button("Zone Maps", key="g_zone1", use_container_width=True): navigate_to("🗺️ Zone Maps")
+        with gi3:
+            st.markdown(f'<div class="glance-card"><div class="glance-text">Peak Window:<br><b>City-wide violations peak at {p_hour}:00 IST</b></div></div>', unsafe_allow_html=True)
+            if st.button("AI Model", key="g_shift2", use_container_width=True): navigate_to("🤖 AI Model")
 
 
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # ██████████████████  PAGE: ZONE MAPS  ███████████████████████████████████████
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 elif page == "🗺️ Zone Maps":
     st.markdown('<div class="page-title">🗺️ Zone Maps</div>', unsafe_allow_html=True)
-    st.markdown('<div class="page-sub">Click a zone preset to zoom in — then tap "Show Offenders in Zone" to pull the full vehicle registry.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="page-sub">Click a zone preset to zoom in - then tap "Show Offenders in Zone" to pull the full vehicle registry.</div>', unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
 
     # ── Quick-View Presets ─────────────────────────────────────────────────
     if quick_views:
-        sec("📍 Zone Quick-Select — Click to Zoom")
+        sec("📍 Zone Quick-Select - Click to Zoom")
         n = len(quick_views)
         qcols = st.columns(n + 1)
         for i, (key, preset) in enumerate(quick_views.items()):
@@ -1187,11 +1198,11 @@ elif page == "🗺️ Zone Maps":
             f"{zone_df['vehicle_number'].nunique():,}" if "vehicle_number" in zone_df.columns and len(zone_df) > 0 else "0",
             zc2)
         kpi("Avg Severity",
-            f"{zone_df['max_severity'].mean():.2f}" if "max_severity" in zone_df.columns and len(zone_df) > 0 else "—",
+            f"{zone_df['max_severity'].mean():.2f}" if "max_severity" in zone_df.columns and len(zone_df) > 0 else "-",
             zc3)
         heavy = int(zone_df["is_heavy_vehicle"].sum()) if "is_heavy_vehicle" in zone_df.columns and len(zone_df) > 0 else 0
         kpi("Heavy Vehicles", f"{heavy:,}", zc4)
-        top_v = zone_df[target_col].value_counts().index[0].replace("_"," ") if len(zone_df) > 0 and target_col in zone_df.columns else "—"
+        top_v = zone_df[target_col].value_counts().index[0].replace("_"," ") if len(zone_df) > 0 and target_col in zone_df.columns else "-"
         kpi("Top Offence", top_v[:16], zc5)
 
         st.markdown("<br>", unsafe_allow_html=True)
@@ -1215,17 +1226,20 @@ elif page == "🗺️ Zone Maps":
             samp = zone_df.dropna(subset=["latitude","longitude"]).sample(min(6000, len(zone_df)), random_state=42)
             samp["sev_lbl"] = samp["max_severity"].map(sev_labels).fillna("Unknown")
 
+
             fig = px.scatter_map(
                 samp, lat="latitude", lon="longitude",
                 color="sev_lbl",
                 color_discrete_map={v: sev_cols[k] for k,v in sev_labels.items()},
                 category_orders={"sev_lbl": ["Very Low","Low","Medium","High","Very High"]},
-                hover_data=["police_station","vehicle_category",target_col,"vehicle_type"],
+                hover_data={"police_station": True, "vehicle_category": True, target_col: True, "vehicle_type": True, "latitude": False, "longitude": False},
+                labels={"sev_lbl": "Severity", "police_station": "Station", "vehicle_category": "Vehicle", target_col: "Offence", "vehicle_type": "Type"},
                 zoom=zoom, center={"lat": center[0], "lon": center[1]},
                 map_style=T["mapstyle"],
                 height=580,
-                title=f"🔎 {label} — {len(zone_df):,} violations (color = severity)",
+                title=f"🔎 {label} - {len(zone_df):,} violations (color = severity)",
             )
+
             fig.update_layout(
                 margin=dict(l=0,r=0,t=40,b=0),
                 paper_bgcolor=T["bg"], font_color=T["text"],
@@ -1240,12 +1254,12 @@ elif page == "🗺️ Zone Maps":
                 fig2 = px.area(
                     hourly, x="hour", y="count",
                     color_discrete_sequence=[T["accent"]],
-                    title=f"Hourly Pattern — {label}",
+                    title=f"Hourly Pattern - {label}",
                     template=T["plotly_template"],
                 )
+                st.success(f"🔮 Peak hour: **{peak_h}:00 IST** - Deploy enforcement between {peak_h}:00 - {(peak_h+2)%24}:00 IST for max impact.")
                 fig2.update_layout(paper_bgcolor=T["bg"], plot_bgcolor=T["card_bg2"], font_color=T["text"])
                 st.plotly_chart(fig2, use_container_width=True)
-                st.success(f"🔮 Peak hour: **{peak_h}:00 IST** — Deploy enforcement between {peak_h}:00 – {(peak_h+2)%24}:00 IST for max impact.")
         else:
             st.warning("No violations in this zone. Try a different preset or reset filters.")
 
@@ -1267,7 +1281,7 @@ elif page == "🗺️ Zone Maps":
             embed_map(MAP_DIR / "02_hotspot_clusters_priority.html")
 
         with mtabs[2]:
-            st.caption("Night patrol (10PM–6AM) vs daytime enforcement split.")
+            st.caption("Night patrol (10PM-6AM) vs daytime enforcement split.")
             embed_map(MAP_DIR / "03_night_vs_day.html")
 
         with mtabs[3]:
@@ -1277,32 +1291,38 @@ elif page == "🗺️ Zone Maps":
                 sev_cols   = {1:"#52b788",2:"#90e0ef",3:"#f4a261",4:"#e94560",5:"#9b2335"}
                 samp = dff.dropna(subset=["latitude","longitude"]).sample(min(8000,len(dff)), random_state=42)
                 samp["sev_lbl"] = samp["max_severity"].map(sev_labels).fillna("Unknown")
+
                 fig = px.scatter_map(
                     samp, lat="latitude", lon="longitude",
                     color="sev_lbl",
                     color_discrete_map={v:sev_cols[k] for k,v in sev_labels.items()},
                     category_orders={"sev_lbl":["Very Low","Low","Medium","High","Very High"]},
-                    hover_data=["police_station","vehicle_category",target_col],
+                    hover_data={"police_station": True, "vehicle_category": True, target_col: True, "latitude": False, "longitude": False},
+                    labels={"sev_lbl": "Severity", "police_station": "Station", "vehicle_category": "Vehicle", target_col: "Offence"},
                     zoom=11, center={"lat":12.9716,"lon":77.5946},
                     map_style=T["mapstyle"], height=600,
+                    title="🟢 Bengaluru - Violations by Severity",
                 )
-                fig.update_layout(margin=dict(l=0,r=0,t=0,b=0), paper_bgcolor=T["bg"], font_color=T["text"])
+                fig.update_layout(margin=dict(l=0,r=0,t=36,b=0), paper_bgcolor=T["bg"], font_color=T["text"], title_font_size=13)
                 st.plotly_chart(fig, use_container_width=True)
 
         with mtabs[4]:
             st.caption("Geohash6 grid (~1km² cells). Bubble size = violations. Color = severity.")
             if not geohash_df.empty:
+
                 fig = px.scatter_map(
-                    geohash_df.head(250), lat="centroid_lat", lon="centroid_lon",
+                    geohash_df.head(500), lat="centroid_lat", lon="centroid_lon",
                     size="violation_count", color="avg_severity",
                     color_continuous_scale=["#52b788","#f4a261","#e94560","#9b2335"],
-                    hover_data=["geohash6","violation_count","avg_severity","top_station"],
+                    hover_data={"geohash6": True, "violation_count": True, "avg_severity": True, "top_station": True, "centroid_lat": False, "centroid_lon": False},
+                    labels={"geohash6": "Grid Cell", "violation_count": "Violations", "avg_severity": "Avg Severity", "top_station": "Top Station"},
                     zoom=11, center={"lat":12.9716,"lon":77.5946},
                     map_style=T["mapstyle"], height=600,
+                    title="🔲 Geohash6 Grid - Violation Density per 1km² Cell",
                 )
-                fig.update_layout(margin=dict(l=0,r=0,t=0,b=0), paper_bgcolor=T["bg"], font_color=T["text"])
+                fig.update_layout(margin=dict(l=0,r=0,t=36,b=0), paper_bgcolor=T["bg"], font_color=T["text"], title_font_size=13)
                 st.plotly_chart(fig, use_container_width=True)
-                st.info("Geohash6 bins violations into 1km² spatial cells — the winning feature from Round 1.")
+                st.info("Geohash6 bins violations into 1km² spatial cells - the winning feature from Round 1.")
 
         with mtabs[5]:
             st.caption("Patrol Gap = zones with high violations but low device coverage. Red = urgent.")
@@ -1311,11 +1331,13 @@ elif page == "🗺️ Zone Maps":
                     patrol_gap_df.head(150), lat="centroid_lat", lon="centroid_lon",
                     size="violation_count", color="gap_score",
                     color_continuous_scale=["#52b788","#f4a261","#e94560"],
-                    hover_data=["geohash5","violation_count","active_devices","gap_score"],
+                    hover_data={"geohash5": True, "violation_count": True, "active_devices": True, "gap_score": True, "centroid_lat": False, "centroid_lon": False},
+                    labels={"geohash5": "Zone", "violation_count": "Violations", "active_devices": "Active Devices", "gap_score": "Gap Score"},
                     zoom=11, center={"lat":12.9716,"lon":77.5946},
                     map_style=T["mapstyle"], height=600,
+                    title="🔍 Patrol Gap - Underpoliced High-Violation Zones",
                 )
-                fig.update_layout(margin=dict(l=0,r=0,t=0,b=0), paper_bgcolor=T["bg"], font_color=T["text"])
+                fig.update_layout(margin=dict(l=0,r=0,t=36,b=0), paper_bgcolor=T["bg"], font_color=T["text"], title_font_size=13)
                 st.plotly_chart(fig, use_container_width=True)
                 st.caption("Gap Score = violation density minus device coverage. Higher = bigger enforcement gap.")
 
@@ -1345,8 +1367,8 @@ elif page == "🗺️ Zone Maps":
 
     lc1,lc2,lc3,lc4 = st.columns(4)
     kpi("Records", f"{len(loc_df):,}", lc1)
-    kpi("Unique Vehicles", f"{loc_df['vehicle_number'].nunique():,}" if "vehicle_number" in loc_df.columns else "—", lc2)
-    kpi("Avg Severity", f"{loc_df['max_severity'].mean():.2f}" if "max_severity" in loc_df.columns and len(loc_df) > 0 else "—", lc3)
+    kpi("Unique Vehicles", f"{loc_df['vehicle_number'].nunique():,}" if "vehicle_number" in loc_df.columns else "-", lc2)
+    kpi("Avg Severity", f"{loc_df['max_severity'].mean():.2f}" if "max_severity" in loc_df.columns and len(loc_df) > 0 else "-", lc3)
     kpi("Heavy", f"{int(loc_df['is_heavy_vehicle'].sum()):,}" if "is_heavy_vehicle" in loc_df.columns else "0", lc4)
 
     if stn_sel != "All Stations" and len(loc_df) > 0:
@@ -1357,7 +1379,7 @@ elif page == "🗺️ Zone Maps":
             h = loc_df.groupby("hour").size().reset_index(name="count")
             fig = px.bar(h, x="hour", y="count",
                          color_discrete_sequence=[T["accent"]],
-                         title=f"Hourly Pattern — {stn_sel}",
+                         title=f"Hourly Pattern - {stn_sel}",
                          template=T["plotly_template"])
             fig.update_layout(paper_bgcolor=T["bg"], plot_bgcolor=T["card_bg2"], font_color=T["text"])
             st.plotly_chart(fig, use_container_width=True)
@@ -1372,7 +1394,7 @@ elif page == "📊 Priority Board":
     st.markdown("<br>", unsafe_allow_html=True)
 
     # Priority ranker
-    sec("🏆 Enforcement Priority Ranker — Top 10 Zones")
+    sec("🏆 Enforcement Priority Ranker - Top 10 Zones")
     if not priority_df.empty:
         top10 = priority_df.head(10)
         fig = px.bar(
@@ -1386,13 +1408,13 @@ elif page == "📊 Priority Board":
             yaxis=dict(categoryorder="total ascending"),
             paper_bgcolor=T["bg"], plot_bgcolor=T["card_bg2"],
             font_color=T["text"], height=420,
-            xaxis_title="Priority Score (0–1)",
+            xaxis_title="Priority Score (0-1)",
             yaxis_title="",
             title="",
         )
         st.plotly_chart(fig, use_container_width=True)
 
-        # Clickable table rows — show offender button per station
+        # Clickable table rows - show offender button per station
         st.markdown("**Click a station row to view its offenders:**")
         for _, row in top10.iterrows():
             col_info, col_btn = st.columns([6, 2])
@@ -1472,8 +1494,8 @@ elif page == "🚨 Offender Registry":
         reg_df = dff[dff["police_station"].isin(drill_stations)]
         context = f"Zone: {drill_label} ({', '.join(drill_stations)})"
     else:
-        reg_df = dff.copy()
-        context = "All Bengaluru — Full Registry"
+        reg_df = dff
+        context = "All Bengaluru - Full Registry"
 
     # ── Header ────────────────────────────────────────────────────────────
     st.markdown('<div class="page-title">🚨 Offender Registry</div>', unsafe_allow_html=True)
@@ -1484,7 +1506,7 @@ elif page == "🚨 Offender Registry":
             <div class="drill-meta">Showing vehicles from: {', '.join(drill_stations)} · {len(reg_df):,} records</div>
         </div>
         """, unsafe_allow_html=True)
-        if st.button("🔄 Clear Filter — Show All Offenders", key="clear_drill"):
+        if st.button("🔄 Clear Filter - Show All Offenders", key="clear_drill"):
             st.session_state.drill_stations = None
             st.session_state.drill_zone_label = None
             st.rerun()
@@ -1511,28 +1533,7 @@ elif page == "🚨 Offender Registry":
     # ── Build vehicle-level summary for this context ───────────────────────
     with st.spinner("Aggregating Offender Data..."):
         if "vehicle_number" in reg_df.columns and len(reg_df) > 0:
-            _count_col = "id" if "id" in reg_df.columns else reg_df.columns[0]
-            _agg = {"total_violations": (_count_col, "count")}
-            if "vehicle_category" in reg_df.columns:     _agg["vehicle_category"]  = ("vehicle_category", "first")
-            if "vehicle_type" in reg_df.columns:          _agg["vehicle_type"]       = ("vehicle_type", "first")
-            if target_col in reg_df.columns:              _agg["top_violation"]      = (target_col, lambda x: x.value_counts().index[0] if len(x) > 0 else "—")
-            if "police_station" in reg_df.columns:        _agg["top_station"]        = ("police_station", lambda x: x.value_counts().index[0] if len(x) > 0 else "—")
-            if "max_severity" in reg_df.columns:          _agg["avg_severity"]       = ("max_severity", "mean")
-            if "is_habitual_offender" in reg_df.columns:  _agg["is_habitual"]        = ("is_habitual_offender", "max")
-            if "is_heavy_vehicle" in reg_df.columns:      _agg["is_heavy"]           = ("is_heavy_vehicle", "max")
-            if "violation_count" in reg_df.columns:       _agg["multi_offence"]      = ("violation_count", lambda x: int((x > 1).sum()))
-            if "created_datetime_ist" in reg_df.columns:  _agg["last_seen"]          = ("created_datetime_ist", "max")
-    
-            veh_summary = (
-                reg_df.groupby("vehicle_number")
-                .agg(**_agg)
-                .reset_index()
-                .sort_values("total_violations", ascending=False)
-            )
-            if "avg_severity" in veh_summary.columns:
-                veh_summary["avg_severity"] = veh_summary["avg_severity"].round(2)
-            if "last_seen" in veh_summary.columns:
-                veh_summary["last_seen"] = veh_summary["last_seen"].astype(str).str[:10]
+            veh_summary = build_vehicle_summary(reg_df, target_col)
         else:
             veh_summary = pd.DataFrame()
 
@@ -1547,10 +1548,10 @@ elif page == "🚨 Offender Registry":
         is_hab  = int(vdata["is_habitual_offender"].max()) if "is_habitual_offender" in vdata.columns else 0
         is_heav = int(vdata["is_heavy_vehicle"].max()) if "is_heavy_vehicle" in vdata.columns else 0
         avg_sev = float(vdata["max_severity"].mean()) if "max_severity" in vdata.columns else 0
-        top_stn = vdata["police_station"].value_counts().index[0] if "police_station" in vdata.columns and len(vdata) > 0 else "—"
-        top_vio = vdata[target_col].value_counts().index[0] if target_col in vdata.columns and len(vdata) > 0 else "—"
-        veh_cat = vdata["vehicle_category"].iloc[0] if "vehicle_category" in vdata.columns else "—"
-        veh_typ = vdata["vehicle_type"].iloc[0] if "vehicle_type" in vdata.columns else "—"
+        top_stn = vdata["police_station"].value_counts().index[0] if "police_station" in vdata.columns and len(vdata) > 0 else "-"
+        top_vio = vdata[target_col].value_counts().index[0] if target_col in vdata.columns and len(vdata) > 0 else "-"
+        veh_cat = vdata["vehicle_category"].iloc[0] if "vehicle_category" in vdata.columns else "-"
+        veh_typ = vdata["vehicle_type"].iloc[0] if "vehicle_type" in vdata.columns else "-"
 
         hab_b  = '<span class="plate-badge badge-hab">⚠ HABITUAL</span>' if is_hab else ""
         hvy_b  = '<span class="plate-badge badge-heavy">🚛 HEAVY</span>' if is_heav else ""
@@ -1582,7 +1583,7 @@ elif page == "🚨 Offender Registry":
         """, unsafe_allow_html=True)
 
         # ── Violation history table ──
-        st.markdown(f"**📜 Complete Violation History — {len(vdata)} records**")
+        st.markdown(f"**📜 Complete Violation History - {len(vdata)} records**")
         hist_cols = [c for c in ["created_datetime_ist","police_station","junction_name",
                                   target_col,"violation_type","max_severity","vehicle_category",
                                   "location","is_junction","time_bucket"] if c in vdata.columns]
@@ -1613,7 +1614,7 @@ elif page == "🚨 Offender Registry":
     ])
 
     # ══════════════════════════════════════════════════════════════════════
-    # TAB 0 — SEARCH
+    # TAB 0 - SEARCH
     # ══════════════════════════════════════════════════════════════════════
     with reg_tabs[0]:
         sec("🔍 Vehicle Number Plate Lookup")
@@ -1645,16 +1646,16 @@ elif page == "🚨 Offender Registry":
                 uniq = hits["vehicle_number"].unique()
                 st.success(f"Found **{len(uniq)} vehicle(s)** matching \"{src}\" · **{len(hits):,} total violations**")
                 for idx_v, vnum in enumerate(uniq[:15]):
-                    with st.expander(f"🚗  {vnum}  —  {len(hits[hits['vehicle_number']==vnum])} violations", expanded=(idx_v==0)):
+                    with st.expander(f"🚗  {vnum}  -  {len(hits[hits['vehicle_number']==vnum])} violations", expanded=(idx_v==0)):
                         _render_vehicle_history(vnum, hits, card_key=f"search_{idx_v}")
         else:
             st.info("💡 Type a full or partial plate number above to search. Results show full violation history for each matching vehicle.")
 
     # ══════════════════════════════════════════════════════════════════════
-    # TAB 1 — ALL VEHICLES TABLE
+    # TAB 1 - ALL VEHICLES TABLE
     # ══════════════════════════════════════════════════════════════════════
     with reg_tabs[1]:
-        sec(f"📋 All Vehicles — {context}")
+        sec(f"📋 All Vehicles - {context}")
         if veh_summary.empty:
             st.info("No vehicle data available.")
         else:
@@ -1707,7 +1708,7 @@ elif page == "🚨 Offender Registry":
                 if sel_idx < len(filt):
                     sel_plate = filt.iloc[sel_idx]["vehicle_number"]
                     st.markdown("---")
-                    sec(f"📋 Vehicle Details — {sel_plate}")
+                    sec(f"📋 Vehicle Details - {sel_plate}")
                     _render_vehicle_history(sel_plate, reg_df, card_key=f"all_{sel_idx}")
             else:
                 st.info("👆 Click a row in the table above to view that vehicle's full violation history.")
@@ -1717,7 +1718,7 @@ elif page == "🚨 Offender Registry":
                                "offender_plates.csv", "text/csv", use_container_width=True)
 
     # ══════════════════════════════════════════════════════════════════════
-    # TAB 2 — HABITUAL OFFENDERS
+    # TAB 2 - HABITUAL OFFENDERS
     # ══════════════════════════════════════════════════════════════════════
     with reg_tabs[2]:
         sec("⚠️ Habitual Offenders (5+ violations on record)")
@@ -1729,7 +1730,7 @@ elif page == "🚨 Offender Registry":
             hk1,hk2,hk3 = st.columns(3)
             kpi("Habitual Count", f"{len(hab_zone)}", hk1, alert=True)
             kpi("Highest Violations", f"{int(hab_zone['total_violations'].max())}", hk2, alert=True)
-            _hab_sev = f"{hab_zone['avg_severity'].mean():.2f}" if "avg_severity" in hab_zone.columns else "—"
+            _hab_sev = f"{hab_zone['avg_severity'].mean():.2f}" if "avg_severity" in hab_zone.columns else "-"
             kpi("Avg Severity", _hab_sev, hk3)
             st.markdown("<br>", unsafe_allow_html=True)
 
@@ -1754,7 +1755,7 @@ elif page == "🚨 Offender Registry":
                 if h_idx < len(hab_zone):
                     h_plate = hab_zone.iloc[h_idx]["vehicle_number"]
                     st.markdown("---")
-                    sec(f"📋 Full History — {h_plate}")
+                    sec(f"📋 Full History - {h_plate}")
                     _render_vehicle_history(h_plate, reg_df, card_key=f"hab_{h_idx}")
             else:
                 st.info("👆 Click any habitual offender to see their full violation history.")
@@ -1763,7 +1764,7 @@ elif page == "🚨 Offender Registry":
                                "habitual_offenders.csv", "text/csv", use_container_width=True)
 
     # ══════════════════════════════════════════════════════════════════════
-    # TAB 3 — HEAVY VEHICLES
+    # TAB 3 - HEAVY VEHICLES
     # ══════════════════════════════════════════════════════════════════════
     with reg_tabs[3]:
         sec("🚛 Heavy Vehicles (5× Congestion Weight)")
@@ -1774,7 +1775,7 @@ elif page == "🚨 Offender Registry":
         else:
             hv1,hv2 = st.columns(2)
             kpi("Heavy Vehicles", f"{len(heavy_zone)}", hv1)
-            _hv_sev = f"{heavy_zone['avg_severity'].mean():.2f}" if "avg_severity" in heavy_zone.columns else "—"
+            _hv_sev = f"{heavy_zone['avg_severity'].mean():.2f}" if "avg_severity" in heavy_zone.columns else "-"
             kpi("Avg Severity", _hv_sev, hv2)
 
             _hv_disp = [c for c in ["vehicle_number","vehicle_category","total_violations",
@@ -1798,7 +1799,7 @@ elif page == "🚨 Offender Registry":
                 if hv_idx < len(heavy_zone):
                     hv_plate = heavy_zone.iloc[hv_idx]["vehicle_number"]
                     st.markdown("---")
-                    sec(f"📋 Full History — {hv_plate}")
+                    sec(f"📋 Full History - {hv_plate}")
                     _render_vehicle_history(hv_plate, reg_df, card_key=f"hv_{hv_idx}")
             else:
                 st.info("👆 Click any heavy vehicle row to see its full violation history.")
@@ -1807,7 +1808,7 @@ elif page == "🚨 Offender Registry":
                                "heavy_vehicles.csv", "text/csv", use_container_width=True)
 
     # ══════════════════════════════════════════════════════════════════════
-    # TAB 4 — MULTI-OFFENCE
+    # TAB 4 - MULTI-OFFENCE
     # ══════════════════════════════════════════════════════════════════════
     with reg_tabs[4]:
         sec("🔴 Multi-Offence Records (2+ violations simultaneously)")
@@ -1818,8 +1819,8 @@ elif page == "🚨 Offender Registry":
                 multi_zone = multi_viol_df
             mk1,mk2,mk3 = st.columns(3)
             kpi("Multi-Offence Records", f"{len(multi_zone):,}", mk1)
-            kpi("Avg Violations/Record", f"{multi_zone['violation_count'].mean():.1f}" if "violation_count" in multi_zone.columns else "—", mk2)
-            kpi("Max Simultaneous", f"{int(multi_zone['violation_count'].max())}" if "violation_count" in multi_zone.columns else "—", mk3, alert=True)
+            kpi("Avg Violations/Record", f"{multi_zone['violation_count'].mean():.1f}" if "violation_count" in multi_zone.columns else "-", mk2)
+            kpi("Max Simultaneous", f"{int(multi_zone['violation_count'].max())}" if "violation_count" in multi_zone.columns else "-", mk3, alert=True)
             st.markdown("<br>", unsafe_allow_html=True)
             st.dataframe(multi_zone.head(200), use_container_width=True, hide_index=True, height=400)
             st.download_button("📥 Download Multi-Offence Records", multi_zone.to_csv(index=False).encode(),
@@ -1828,7 +1829,7 @@ elif page == "🚨 Offender Registry":
             st.info("No multi-offence data available.")
 
     # ══════════════════════════════════════════════════════════════════════
-    # TAB 5 — EXPORT
+    # TAB 5 - EXPORT
     # ══════════════════════════════════════════════════════════════════════
     with reg_tabs[5]:
         sec("📥 Export Zone Data")
@@ -1873,18 +1874,18 @@ elif page == "⏱️ Shift & Timing":
 
     # Shift filter
     sec("🕐 Shift Filter")
-    SHIFT_MAP = {"All Shifts": None, "🌙 Night (10PM–6AM)": "NIGHT",
-                 "🌅 Morning (6AM–10AM)": "MORNING", "☀️ Midday (10AM–2PM)": "MIDDAY",
-                 "🌤️ Afternoon (2PM–6PM)": "AFTERNOON", "🌆 Evening (6PM–10PM)": "EVENING"}
+    SHIFT_MAP = {"All Shifts": None, "🌙 Night (10PM-6AM)": "NIGHT",
+                 "🌅 Morning (6AM-10AM)": "MORNING", "☀️ Midday (10AM-2PM)": "MIDDAY",
+                 "🌤️ Afternoon (2PM-6PM)": "AFTERNOON", "🌆 Evening (6PM-10PM)": "EVENING"}
     shift_ch = st.radio("Shift", list(SHIFT_MAP.keys()), horizontal=True, label_visibility="collapsed")
     bkt = SHIFT_MAP[shift_ch]
     shift_df = dff[dff["time_bucket"] == bkt] if bkt and "time_bucket" in dff.columns else dff
 
     sc1,sc2,sc3,sc4 = st.columns(4)
     kpi("Records in Shift", f"{len(shift_df):,}", sc1)
-    kpi("Avg Severity", f"{shift_df['max_severity'].mean():.2f}" if "max_severity" in shift_df.columns and len(shift_df)>0 else "—", sc2)
+    kpi("Avg Severity", f"{shift_df['max_severity'].mean():.2f}" if "max_severity" in shift_df.columns and len(shift_df)>0 else "-", sc2)
     kpi("Heavy Vehicles", f"{int(shift_df['is_heavy_vehicle'].sum()):,}" if "is_heavy_vehicle" in shift_df.columns else "0", sc3)
-    kpi("Unique Vehicles", f"{shift_df['vehicle_number'].nunique():,}" if "vehicle_number" in shift_df.columns else "—", sc4)
+    kpi("Unique Vehicles", f"{shift_df['vehicle_number'].nunique():,}" if "vehicle_number" in shift_df.columns else "-", sc4)
 
     if not time_block_df.empty:
         fig = px.bar(time_block_df, x="time_bucket", y="violation_count",
@@ -1898,8 +1899,8 @@ elif page == "⏱️ Shift & Timing":
 
     # Peak hour forecaster
     sec("🔮 Peak Hour Forecaster")
-    col_sel, col_chart = st.columns([1, 3])
-    with col_sel:
+    sel_col, _ = st.columns([1, 3])
+    with sel_col:
         forecast_stn = st.selectbox("Station:", ["City-Wide"] + sorted(dff["police_station"].unique().tolist()) if "police_station" in dff.columns else ["City-Wide"])
 
     if forecast_stn == "City-Wide":
@@ -1907,18 +1908,16 @@ elif page == "⏱️ Shift & Timing":
         ptitle = "City-Wide Peak Hours"
     else:
         peak_data = peak_time_df[peak_time_df["police_station"] == forecast_stn] if not peak_time_df.empty else pd.DataFrame()
-        ptitle = f"Peak Hours — {forecast_stn}"
+        ptitle = f"Peak Hours - {forecast_stn}"
 
-    with col_chart:
-        if not peak_data.empty:
-            fig = px.bar(peak_data, x="hour", y="violation_count",
-                         color="violation_count", color_continuous_scale=["#13132a","#e94560"],
-                         title=ptitle, template=T["plotly_template"])
-            fig.update_layout(paper_bgcolor=T["bg"], plot_bgcolor=T["card_bg2"], font_color=T["text"])
-            st.plotly_chart(fig, use_container_width=True)
-            peak_h = int(peak_data.loc[peak_data["violation_count"].idxmax(), "hour"])
-            st.success(f"🔮 **Deploy at {peak_h}:00 IST** — highest violation probability. Maintain until {(peak_h+2)%24}:00 IST.")
-
+    if not peak_data.empty:
+        fig = px.bar(peak_data, x="hour", y="violation_count",
+                     color="violation_count", color_continuous_scale=["#13132a","#e94560"],
+                     title=ptitle, template=T["plotly_template"])
+        fig.update_layout(paper_bgcolor=T["bg"], plot_bgcolor=T["card_bg2"], font_color=T["text"])
+        st.plotly_chart(fig, use_container_width=True)
+        peak_h = int(peak_data.loc[peak_data["violation_count"].idxmax(), "hour"])
+        st.success(f"🔮 **Deploy at {peak_h}:00 IST** - highest violation probability. Maintain until {(peak_h+2)%24}:00 IST.")
     st.divider()
 
     # Hour × Violation heatmap
@@ -1997,7 +1996,7 @@ elif page == "🤖 AI Model":
         embed_plot(PLOT_DIR / "10_model_comparison.png", "LightGBM vs XGBoost vs Ensemble")
 
     with ml_tabs[3]:
-        sec("🎮 Live Prediction — Violation Group Classifier")
+        sec("🎮 Live Prediction - Violation Group Classifier")
         st.markdown("Enter a scenario to get an instant AI classification:")
 
         pred_stns = live_pred_cfg.get("police_stations", ["Upparpet"])
@@ -2018,7 +2017,7 @@ elif page == "🤖 AI Model":
                 offender_tiers = live_pred_cfg.get("offender_tiers", ["FIRST_TIME"])
                 pred_tier = st.selectbox(
                     "Offender History", offender_tiers,
-                    help="Vehicle's prior-violation tier — pulled from real repeat-offender stats."
+                    help="Vehicle's prior-violation tier - pulled from real repeat-offender stats."
                 )
                 pred_junction_name = (
                     st.selectbox(f"Junction at {pred_stn}", real_junctions)
@@ -2045,7 +2044,7 @@ elif page == "🤖 AI Model":
                 else: tb = "EVENING"
 
                 # ── Pull every value from REAL data-derived lookups built by
-                # dashboard_data_pipeline.py — no hardcoded placeholder constants.
+                # dashboard_data_pipeline.py - no hardcoded placeholder constants.
                 fb        = live_pred_cfg.get("global_fallback", {})
                 stn_data  = live_pred_cfg.get("station_lookup", {}).get(pred_stn, {})
                 veh_data  = live_pred_cfg.get("vehicle_lookup", {}).get(pred_veh, {})
@@ -2086,7 +2085,7 @@ elif page == "🤖 AI Model":
                     "repeat_offender_tier_enc": tier_data.get("repeat_offender_tier_enc", 0),
                     "time_bucket_enc": tb_data.get("time_bucket_enc", 0),
                 }
-                # Feature order MUST exactly match what the model was trained on —
+                # Feature order MUST exactly match what the model was trained on -
                 # persisted by parking_intelligence_pipeline.py into model_summary.json
                 # and copied through into this config by dashboard_data_pipeline.py.
                 feats = live_pred_cfg.get("feature_columns", [])
@@ -2103,7 +2102,7 @@ elif page == "🤖 AI Model":
                 # this specific scenario. Instead, score each class by how far
                 # its probability clears its OWN F1-calibrated threshold
                 # (computed on held-out data in parking_intelligence_pipeline.py)
-                # and pick the largest margin — not the largest raw number.
+                # and pick the largest margin - not the largest raw number.
                 thresholds = live_pred_cfg.get("decision_thresholds", {})
                 margin_scores = []
                 for ci, cname in enumerate(classes):
@@ -2111,7 +2110,7 @@ elif page == "🤖 AI Model":
                     margin_scores.append(float(ens_p[0][ci]) / th)
                 idx = int(np.argmax(margin_scores))
                 pred_cls = classes[idx] if idx < len(classes) else "UNKNOWN"
-                conf = float(ens_p[0][idx]) * 100  # confidence shown is still the RAW probability — honest, not inflated by the margin score
+                conf = float(ens_p[0][idx]) * 100  # confidence shown is still the RAW probability - honest, not inflated by the margin score
                 col_map = {"GENERIC_PARKING":"#f4a261","SEVERE_OBSTRUCTION":"#e94560","VEHICLE_COMPLIANCE":"#4cc9f0"}
                 clr = col_map.get(pred_cls, T["accent2"])
 
