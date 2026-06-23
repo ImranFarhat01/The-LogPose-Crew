@@ -1082,6 +1082,15 @@ if page == "🏠 Command Center":
         if qcols2[1].button("Shift & Timing", use_container_width=True): navigate_to("⏱️ Shift & Timing")
 
         st.markdown("<br>", unsafe_allow_html=True)
+        sec("Quick Vehicle Search")
+        vcols = st.columns([3, 1])
+        cmd_search = vcols[0].text_input("Enter Plate No.", placeholder="KA01AB1234", key="cmd_search_input", label_visibility="collapsed")
+        if vcols[1].button("Search", use_container_width=True, type="primary"):
+            if cmd_search:
+                st.session_state.quick_search_vnum = cmd_search.strip().upper()
+            navigate_to("🚨 Offender Registry")
+
+        st.markdown("<br>", unsafe_allow_html=True)
         sec("AI & Operations Overview")
         ao1, ao2, ao3 = st.columns(3)
         acc = model_summary.get('ensemble_accuracy', 0) if model_summary else 0
@@ -1114,14 +1123,6 @@ if page == "🏠 Command Center":
             st.markdown(f'<div class="glance-card"><div class="glance-text">Peak Window:<br><b>City-wide violations peak at {p_hour}:00 IST</b></div></div>', unsafe_allow_html=True)
             if st.button("AI Model", key="g_shift2", use_container_width=True): navigate_to("🤖 AI Model")
 
-        st.markdown("<br>", unsafe_allow_html=True)
-        sec("Quick Vehicle Search")
-        vcols = st.columns([3, 1])
-        cmd_search = vcols[0].text_input("Enter Plate No.", placeholder="KA01AB1234", key="cmd_search_input", label_visibility="collapsed")
-        if vcols[1].button("Search", use_container_width=True, type="primary"):
-            if cmd_search:
-                st.session_state.quick_search_vnum = cmd_search.strip().upper()
-            navigate_to("🚨 Offender Registry")
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
