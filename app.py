@@ -1318,7 +1318,7 @@ elif page == "🗺️ Zone Maps":
                     map_style=T["mapstyle"], height=600,
                     title="🟢 Bengaluru — Violations by Severity",
                 )
-                fig.update_layout(margin=dict(l=0,r=0,t=0,b=0), paper_bgcolor=T["bg"], font_color=T["text"])
+                fig.update_layout(margin=dict(l=0,r=0,t=36,b=0), paper_bgcolor=T["bg"], font_color=T["text"], title_font_size=13)
                 st.plotly_chart(fig, use_container_width=True)
 
         with mtabs[4]:
@@ -1335,7 +1335,7 @@ elif page == "🗺️ Zone Maps":
                     map_style=T["mapstyle"], height=600,
                     title="🔲 Geohash6 Grid — Violation Density per 1km² Cell",
                 )
-                fig.update_layout(margin=dict(l=0,r=0,t=0,b=0), paper_bgcolor=T["bg"], font_color=T["text"])
+                fig.update_layout(margin=dict(l=0,r=0,t=36,b=0), paper_bgcolor=T["bg"], font_color=T["text"], title_font_size=13)
                 st.plotly_chart(fig, use_container_width=True)
                 st.info("Geohash6 bins violations into 1km² spatial cells — the winning feature from Round 1.")
 
@@ -1352,7 +1352,7 @@ elif page == "🗺️ Zone Maps":
                     map_style=T["mapstyle"], height=600,
                     title="🔍 Patrol Gap — Underpoliced High-Violation Zones",
                 )
-                fig.update_layout(margin=dict(l=0,r=0,t=0,b=0), paper_bgcolor=T["bg"], font_color=T["text"])
+                fig.update_layout(margin=dict(l=0,r=0,t=36,b=0), paper_bgcolor=T["bg"], font_color=T["text"], title_font_size=13)
                 st.plotly_chart(fig, use_container_width=True)
                 st.caption("Gap Score = violation density minus device coverage. Higher = bigger enforcement gap.")
 
