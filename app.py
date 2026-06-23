@@ -974,16 +974,16 @@ if page == "🏠 Command Center":
     anom_msg = anomaly_data.get("warning_message", "1 Alert") if anomaly_data else ""
 
     st.markdown(f'''
-    <div class="status-strip">
-        <div class="status-pill" style="flex:1;">
+    <div class="status-strip" style="justify-content:flex-start; gap:40px;">
+        <div class="status-pill" style="white-space:nowrap;">
             <span style="color:{'#52b788' if v_pct>=80 else '#e94560'}">{'🟢' if v_pct>=80 else '🔴'}</span> 
             Data Health: {v_pct:.1f}% Valid
         </div>
-        <div class="status-pill" style="flex:1;">
+        <div class="status-pill" style="white-space:nowrap;">
             <span style="color:{'#52b788' if s_pct>=80 else '#e94560'}">{'🟢' if s_pct>=80 else '🔴'}</span> 
             SCITA Sync: {s_pct:.1f}%
         </div>
-        <div class="status-pill" style="flex:2; white-space:normal; align-items:flex-start;">
+        <div class="status-pill" style="white-space:normal; max-width:500px; align-items:flex-start;">
             <span style="color:{'#e94560' if has_anom else '#52b788'}; flex-shrink:0;">{'🔴' if has_anom else '🟢'}</span> 
             {'Anomaly: ' + anom_msg if has_anom else 'System Normal'}
         </div>
