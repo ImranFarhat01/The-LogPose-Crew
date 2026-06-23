@@ -717,8 +717,11 @@ def _load_json(p, coll_name=None):
         if mongo_client:
             try:
                 db = mongo_client[MONGO_DB]
-                doc = db[coll_name].find_one({}, {"_id": 0})
-                if doc: return doc
+                docs = list(db[coll_name].find({}, {"_id": 0}))
+                if len(docs) > 1:
+                    return docs
+                elif len(docs) == 1:
+                    return docs[0]
             except Exception:
                 pass
 
