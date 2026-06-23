@@ -769,6 +769,34 @@ def cload(p, coll_name=None):
     try: return _load_csv(p, coll_name)
     except: return pd.DataFrame()
 
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def build_vehicle_summary(reg_df, target_col):
+    if "vehicle_number" not in reg_df.columns or len(reg_df) == 0:
+        return pd.DataFrame()
+    _count_col = "id" if "id" in reg_df.columns else reg_df.columns[0]
+    _agg = {"total_violations": (_count_col, "count")}
+    if "vehicle_category" in reg_df.columns:     _agg["vehicle_category"]  = ("vehicle_category", "first")
+    if "vehicle_type" in reg_df.columns:          _agg["vehicle_type"]       = ("vehicle_type", "first")
+    if target_col in reg_df.columns:              _agg["top_violation"]      = (target_col, lambda x: x.value_counts().index[0] if len(x) > 0 else "—")
+    if "police_station" in reg_df.columns:        _agg["top_station"]        = ("police_station", lambda x: x.value_counts().index[0] if len(x) > 0 else "—")
+    if "max_severity" in reg_df.columns:          _agg["avg_severity"]       = ("max_severity", "mean")
+    if "is_habitual_offender" in reg_df.columns:  _agg["is_habitual"]        = ("is_habitual_offender", "max")
+    if "is_heavy_vehicle" in reg_df.columns:      _agg["is_heavy"]           = ("is_heavy_vehicle", "max")
+    if "violation_count" in reg_df.columns:       _agg["multi_offence"]      = ("violation_count", lambda x: int((x > 1).sum()))
+    if "created_datetime_ist" in reg_df.columns:  _agg["last_seen"]          = ("created_datetime_ist", "max")
+    veh_summary = (
+        reg_df.groupby("vehicle_number")
+        .agg(**_agg)
+        .reset_index()
+        .sort_values("total_violations", ascending=False)
+    )
+    if "avg_severity" in veh_summary.columns:
+        veh_summary["avg_severity"] = veh_summary["avg_severity"].round(2)
+    if "last_seen" in veh_summary.columns:
+        veh_summary["last_seen"] = veh_summary["last_seen"].astype(str).str[:10]
+    return veh_summary
+
 df              = load_features()
 model_summary   = jload(OUT_DIR / "model_summary.json", "model_summary")
 priority_df     = cload(OUT_DIR / "enforcement_priority_ranked.csv", "enforcement_priority_ranked")
@@ -1468,7 +1496,7 @@ elif page == "🚨 Offender Registry":
         reg_df = dff[dff["police_station"].isin(drill_stations)]
         context = f"Zone: {drill_label} ({', '.join(drill_stations)})"
     else:
-        reg_df = dff.copy()
+        reg_df = dff
         context = "All Bengaluru — Full Registry"
 
     # ── Header ────────────────────────────────────────────────────────────
@@ -1507,28 +1535,7 @@ elif page == "🚨 Offender Registry":
     # ── Build vehicle-level summary for this context ───────────────────────
     with st.spinner("Aggregating Offender Data..."):
         if "vehicle_number" in reg_df.columns and len(reg_df) > 0:
-            _count_col = "id" if "id" in reg_df.columns else reg_df.columns[0]
-            _agg = {"total_violations": (_count_col, "count")}
-            if "vehicle_category" in reg_df.columns:     _agg["vehicle_category"]  = ("vehicle_category", "first")
-            if "vehicle_type" in reg_df.columns:          _agg["vehicle_type"]       = ("vehicle_type", "first")
-            if target_col in reg_df.columns:              _agg["top_violation"]      = (target_col, lambda x: x.value_counts().index[0] if len(x) > 0 else "—")
-            if "police_station" in reg_df.columns:        _agg["top_station"]        = ("police_station", lambda x: x.value_counts().index[0] if len(x) > 0 else "—")
-            if "max_severity" in reg_df.columns:          _agg["avg_severity"]       = ("max_severity", "mean")
-            if "is_habitual_offender" in reg_df.columns:  _agg["is_habitual"]        = ("is_habitual_offender", "max")
-            if "is_heavy_vehicle" in reg_df.columns:      _agg["is_heavy"]           = ("is_heavy_vehicle", "max")
-            if "violation_count" in reg_df.columns:       _agg["multi_offence"]      = ("violation_count", lambda x: int((x > 1).sum()))
-            if "created_datetime_ist" in reg_df.columns:  _agg["last_seen"]          = ("created_datetime_ist", "max")
-    
-            veh_summary = (
-                reg_df.groupby("vehicle_number")
-                .agg(**_agg)
-                .reset_index()
-                .sort_values("total_violations", ascending=False)
-            )
-            if "avg_severity" in veh_summary.columns:
-                veh_summary["avg_severity"] = veh_summary["avg_severity"].round(2)
-            if "last_seen" in veh_summary.columns:
-                veh_summary["last_seen"] = veh_summary["last_seen"].astype(str).str[:10]
+            veh_summary = build_vehicle_summary(reg_df, target_col)
         else:
             veh_summary = pd.DataFrame()
 
