@@ -918,10 +918,7 @@ with st.sidebar:
     st.markdown(f'<div style="height:1px;background:linear-gradient(90deg,transparent,{T["border"]},transparent);margin:12px 0;"></div>', unsafe_allow_html=True)
 
     # Theme toggle
-    dark = st.toggle("🌙 Dark Mode", value=st.session_state.dark_mode)
-    if dark != st.session_state.dark_mode:
-        st.session_state.dark_mode = dark
-        st.rerun()
+    st.session_state.dark_mode = True
 
     st.markdown(f'<div style="height:1px;background:linear-gradient(90deg,transparent,{T["border"]},transparent);margin:12px 0;"></div>', unsafe_allow_html=True)
 
