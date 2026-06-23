@@ -1083,7 +1083,7 @@ if page == "🏠 Command Center":
             if st.button("Zone Maps", key="g_zone1", use_container_width=True): navigate_to("🗺️ Zone Maps")
         with gi3:
             st.markdown(f'<div class="glance-card"><div class="glance-text">Peak Window:<br><b>City-wide violations peak at {p_hour}:00 IST</b></div></div>', unsafe_allow_html=True)
-            if st.button("Operations", key="g_shift2", use_container_width=True): navigate_to("⏰ Shift & Timing")
+            if st.button("AI Model", key="g_shift2", use_container_width=True): navigate_to("🤖 AI Model")
 
         st.markdown("<br>", unsafe_allow_html=True)
         
@@ -1136,7 +1136,7 @@ if page == "🏠 Command Center":
         if qcols1[0].button("Zone Maps", use_container_width=True): navigate_to("🗺️ Zone Maps")
         if qcols1[1].button("Offender Registry", use_container_width=True): navigate_to("🚨 Offender Registry")
         if qcols2[0].button("Priority Board", use_container_width=True): navigate_to("📊 Priority Board")
-        if qcols2[1].button("Shift & Timing", use_container_width=True): navigate_to("⏰ Shift & Timing")
+        if qcols2[1].button("Shift & Timing", use_container_width=True): navigate_to("⏱️ Shift & Timing")
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
