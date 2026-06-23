@@ -1902,8 +1902,8 @@ elif page == "⏱️ Shift & Timing":
 
     # Peak hour forecaster
     sec("🔮 Peak Hour Forecaster")
-    col_sel, col_chart = st.columns([1, 3])
-    with col_sel:
+    sel_col, _ = st.columns([1, 3])
+    with sel_col:
         forecast_stn = st.selectbox("Station:", ["City-Wide"] + sorted(dff["police_station"].unique().tolist()) if "police_station" in dff.columns else ["City-Wide"])
 
     if forecast_stn == "City-Wide":
@@ -1913,16 +1913,14 @@ elif page == "⏱️ Shift & Timing":
         peak_data = peak_time_df[peak_time_df["police_station"] == forecast_stn] if not peak_time_df.empty else pd.DataFrame()
         ptitle = f"Peak Hours - {forecast_stn}"
 
-    with col_chart:
-        if not peak_data.empty:
-            fig = px.bar(peak_data, x="hour", y="violation_count",
-                         color="violation_count", color_continuous_scale=["#13132a","#e94560"],
-                         title=ptitle, template=T["plotly_template"])
-            fig.update_layout(paper_bgcolor=T["bg"], plot_bgcolor=T["card_bg2"], font_color=T["text"])
-            st.plotly_chart(fig, use_container_width=True)
-            peak_h = int(peak_data.loc[peak_data["violation_count"].idxmax(), "hour"])
-            st.success(f"🔮 **Deploy at {peak_h}:00 IST** - highest violation probability. Maintain until {(peak_h+2)%24}:00 IST.")
-
+    if not peak_data.empty:
+        fig = px.bar(peak_data, x="hour", y="violation_count",
+                     color="violation_count", color_continuous_scale=["#13132a","#e94560"],
+                     title=ptitle, template=T["plotly_template"])
+        fig.update_layout(paper_bgcolor=T["bg"], plot_bgcolor=T["card_bg2"], font_color=T["text"])
+        st.plotly_chart(fig, use_container_width=True)
+        peak_h = int(peak_data.loc[peak_data["violation_count"].idxmax(), "hour"])
+        st.success(f"🔮 **Deploy at {peak_h}:00 IST** - highest violation probability. Maintain until {(peak_h+2)%24}:00 IST.")
     st.divider()
 
     # Hour × Violation heatmap
