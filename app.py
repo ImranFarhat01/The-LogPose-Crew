@@ -1002,22 +1002,21 @@ if page == "🏠 Command Center":
             {"title": "Hotspot Clusters & Priority", "file": "02_hotspot_clusters_priority.html"},
             {"title": "Night vs Day Patrol", "file": "03_night_vs_day.html"}
         ]
-        current_map = mini_maps[st.session_state.mini_map_idx]
-        st.markdown(f"<div style='text-align:center; font-weight:600; color:{T['text']};'>{current_map['title']}</div>", unsafe_allow_html=True)
-        embed_map(MAP_DIR / current_map["file"], height=500)
-        st.markdown(f"<div style='text-align:center; font-size:0.75rem; color:{T['neutral']}; padding: 6px 0 4px 0;'>Use the buttons below to switch maps &nbsp;·&nbsp; Showing {st.session_state.mini_map_idx + 1} of {len(mini_maps)}</div>", unsafe_allow_html=True)
-        nav1, nav2, nav3 = st.columns(3)
-        with nav1:
-            if st.button("🔥 Congestion Heatmap", key="btn_map_0", use_container_width=True):
-                st.session_state.mini_map_idx = 0
+        col_prev, col_map, col_next = st.columns([1, 10, 1])
+        with col_prev:
+            st.markdown("<br>"*12, unsafe_allow_html=True)
+            if st.button("◄", key="btn_prev_map", use_container_width=True):
+                st.session_state.mini_map_idx = (st.session_state.mini_map_idx - 1) % len(mini_maps)
                 st.rerun()
-        with nav2:
-            if st.button("🎯 Hotspot Clusters", key="btn_map_1", use_container_width=True):
-                st.session_state.mini_map_idx = 1
-                st.rerun()
-        with nav3:
-            if st.button("🌙 Night vs Day", key="btn_map_2", use_container_width=True):
-                st.session_state.mini_map_idx = 2
+        with col_map:
+            current_map = mini_maps[st.session_state.mini_map_idx]
+            st.markdown(f"<div style='text-align:center; font-weight:600; color:{T['text']};'>{current_map['title']}</div>", unsafe_allow_html=True)
+            st.markdown(f"<div style='text-align:center; font-size:0.75rem; color:{T['neutral']}; padding-bottom:10px;'>Map {st.session_state.mini_map_idx + 1} of {len(mini_maps)}</div>", unsafe_allow_html=True)
+            embed_map(MAP_DIR / current_map["file"], height=400)
+        with col_next:
+            st.markdown("<br>"*12, unsafe_allow_html=True)
+            if st.button("►", key="btn_next_map", use_container_width=True):
+                st.session_state.mini_map_idx = (st.session_state.mini_map_idx + 1) % len(mini_maps)
                 st.rerun()
 
     with col_right:
