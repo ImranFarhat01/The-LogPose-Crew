@@ -570,6 +570,7 @@ footer {{ visibility: hidden; }}
 .status-pill {{
     font-weight: 600; font-size: 0.85rem; color: {T['neutral']};
     display: flex; align-items: center; gap: 6px; text-transform: uppercase; letter-spacing: 0.5px;
+    white-space: nowrap;
 }}
 
 .urgent-card {{
@@ -982,8 +983,8 @@ if page == "🏠 Command Center":
             <span style="color:{'#52b788' if s_pct>=80 else '#e94560'}">{'🟢' if s_pct>=80 else '🔴'}</span> 
             SCITA Sync: {s_pct:.1f}%
         </div>
-        <div class="status-pill">
-            <span style="color:{'#e94560' if has_anom else '#52b788'}">{'🔴' if has_anom else '🟢'}</span> 
+        <div class="status-pill" style="white-space:normal; max-width:420px; align-items:flex-start;">
+            <span style="color:{'#e94560' if has_anom else '#52b788'}; flex-shrink:0;">{'🔴' if has_anom else '🟢'}</span> 
             {'Anomaly: ' + anom_msg if has_anom else 'System Normal'}
         </div>
     </div>
