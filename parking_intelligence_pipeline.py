@@ -96,7 +96,7 @@ warnings.filterwarnings("ignore")
 pd.set_option("display.max_columns", 50)
 
 # ── PATHS ───────────────────────────────────────────────────────────────────
-BASE_DIR   = Path(r"D:\Flipkart Gridlock 2.0\Round-2")
+BASE_DIR   = Path(r"B:\FlipKart_Grid_Hackathon\LogPose_Deploy")
 DATA_DIR   = BASE_DIR / "data"
 CLEAN_DIR  = DATA_DIR / "cleaned"
 OUT_DIR    = BASE_DIR / "outputs"

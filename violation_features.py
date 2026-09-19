@@ -38,7 +38,7 @@ print("  VIOLATION FEATURE ENGINEERING")
 print("=" * 65)
 
 # ── PATHS ───────────────────────────────────────────────────────────────────
-BASE_DIR   = Path(r"D:\Flipkart Gridlock 2.0\Round-2")
+BASE_DIR   = Path(r"B:\FlipKart_Grid_Hackathon\LogPose_Deploy")
 CLEAN_DIR  = BASE_DIR / "data" / "cleaned"
 INPUT_CSV  = CLEAN_DIR / "dataset_features.csv"
 OUTPUT_CSV = CLEAN_DIR / "dataset_features.csv"   # update in-place

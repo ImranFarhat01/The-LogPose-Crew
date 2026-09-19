@@ -45,7 +45,7 @@ print("  DATA CLEANING PIPELINE — BTP Parking Violations")
 print("=" * 65)
 
 # ── PATHS — adjust BASE_DIR if needed ──────────────────────────────────────
-BASE_DIR  = Path(r"D:\Flipkart Gridlock 2.0\Round-2")
+BASE_DIR  = Path(r"B:\FlipKart_Grid_Hackathon\LogPose_Deploy")
 DATA_DIR  = BASE_DIR / "data"
 CLEAN_DIR = DATA_DIR / "cleaned"
 CLEAN_DIR.mkdir(parents=True, exist_ok=True)
